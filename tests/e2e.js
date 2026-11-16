@@ -39,7 +39,7 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   await ctx.route('https://api.open-meteo.com/v1/forecast**', r => meteoCourante ? r.fulfill({ json: meteoCourante }) : r.abort('failed'));
 
   const heure = async (iso) => { await page.clock.setFixedTime(new Date(iso)); };
-  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v1')); await page.reload(); await page.waitForTimeout(150); };
+  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v2')); await page.reload(); await page.waitForTimeout(150); };
   const texte = async (sel) => (await page.locator(sel).first().innerText());
   const capture = async (nom) => { if (CAPTURES) await page.screenshot({ path: path.join(CAPTURES, nom + '.png'), fullPage: true }); };
 
@@ -131,6 +131,25 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   assert.match(await page.innerText('main'), /Tuteurer/);
   const r1 = await texte('[data-test="fenetre-recolte"]');
   const urlTomate = page.url();
+  // Écran météo et alertes : gel avec une tomate en terre
+  await heure('2027-05-25T09:00:00+02:00');
+  meteoCourante = reponseOpenMeteo(serie('2027-05-22', [[10, 20], [11, 21], [9, 19], [6, 15], [1, 12], [8, 18, 25, 70, 95], [10, 22], [11, 23], [12, 24], [12, 24], [12, 24]]));
+  await ouvrir('#/meteo');
+  await page.waitForSelector('[data-test="previsions"]');
+  const ecranM = await page.innerText('main');
+  assert.equal(await page.locator('.prevision').count(), 7);
+  assert.match(ecranM, /Risque de gelée blanche : 1 °C/);
+  assert.match(ecranM, /Concerne : Tomate/);
+  assert.match(ecranM, /Forte pluie : 25 mm/);
+  assert.match(ecranM, /Orage possible/);
+  await capture('meteo');
+  await page.goto(base + '#/');
+  assert.match(await page.innerText('[data-test="alertes-accueil"]'), /gelée blanche/);
+  await page.goto(urlTomate);
+  await heure('2027-05-21T09:00:00+02:00');
+  meteoCourante = reponseOpenMeteo(serie('2027-05-17', [[12, 22], [13, 24], [13, 25], [14, 26], [14, 26], [13, 24], [12, 23], [12, 23], [13, 24], [13, 24], [13, 24]]));
+  await ouvrir('#' + urlTomate.split('#')[1]);
+  ok('Écran Météo : 7 jours, alertes gel / forte pluie / orage avec cultures concernées, rappel sur l’accueil');
   await heure('2027-06-03T09:00:00+02:00'); await page.reload();
   assert.match(await page.innerText('[data-test="prochaine"]'), /fenêtre est dépassée/);
   await page.fill('form[data-etape="reprise"] input[name="date"]', '2027-06-02');

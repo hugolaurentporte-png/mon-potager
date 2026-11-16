@@ -5,7 +5,7 @@
  * En cas d'échec, l'app continue avec le calendrier climatique seul.
  */
 (function (racine) {
-  var CLE_CACHE = 'potager.meteo.v1';
+  var CLE_CACHE = 'potager.meteo.v2';
   var DUREE_FRAICHE = 3 * 3600 * 1000;   // on réutilise une prévision de moins de 3 h
   var DUREE_MAX = 24 * 3600 * 1000;      // au-delà de 24 h, une prévision est périmée
 
@@ -49,7 +49,8 @@
     var jours = [], heures = [];
     var d = r.daily || {}, h = r.hourly || {};
     (d.time || []).forEach(function (t, i) {
-      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: d.precipitation_sum ? d.precipitation_sum[i] : 0 });
+      var v = function (k) { return d[k] ? d[k][i] : null; };
+      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code') });
     });
     (h.time || []).forEach(function (t, i) { heures.push({ t: t, pluie: h.precipitation[i] || 0 }); });
     return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures };
@@ -69,7 +70,7 @@
       return Promise.resolve({ meteo: cache.meteo, etat: 'ok' });
     }
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&hourly=precipitation&past_days=3&forecast_days=8&timezone=auto';
+      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code&hourly=precipitation&past_days=3&forecast_days=8&timezone=auto';
     return avecDelai(url).then(function (r) {
       var m = normaliser(r);
       ecrireCache({ cle: cle, date: maintenant, meteo: m });

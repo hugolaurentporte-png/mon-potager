@@ -184,3 +184,24 @@ test('Espaces — compatibilité et nombre de plants', () => {
   assert.equal(sug.length, 15);
   assert.ok(sug.every(s => s.demarrage && s.demarrage.length > 5));
 });
+
+test('Alertes météo du jardin', () => {
+  require('../js/meteo.js');
+  const { reponseOpenMeteo, serie } = require('./outils.js');
+  const m = (t) => globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-05-10', t)));
+  const tomate = { plantation: {}, culture: M.culture('tomate'), espace: { pluie: 'ciel_ouvert' } };
+  const ail = { plantation: {}, culture: M.culture('ail'), espace: { pluie: 'ciel_ouvert' } };
+  const maintenant = le('2027-05-12');
+  const gel = M.alertesJardin(m([[5, 15], [5, 15], [8, 18], [-2, 10], [6, 16], [8, 18], [9, 19], [10, 20], [10, 20], [10, 20]]), maintenant, [tomate, ail]);
+  assert.equal(gel[0].type, 'gel'); assert.equal(gel[0].gravite, 'alerte');
+  assert.deepEqual(gel[0].concerne, ['Tomate']);
+  assert.equal(M.alertesJardin(m([[5, 15], [5, 15], [8, 18], [-2, 10], [6, 16], [8, 18], [9, 19], [10, 20], [10, 20], [10, 20]]), maintenant, [ail])[0].gravite, 'attention');
+  const chaud = M.alertesJardin(m([[18, 30], [18, 30], [20, 36], [20, 34, 0, 70], [18, 30], [18, 31], [18, 30], [18, 30], [18, 30], [18, 30]]), maintenant, [tomate]);
+  assert.ok(chaud.some(a => a.type === 'chaleur' && a.gravite === 'alerte'));
+  assert.ok(chaud.some(a => a.type === 'vent'));
+  assert.ok(chaud.some(a => a.type === 'secheresse'));
+  const calme = M.alertesJardin(m([[10, 20, 1], [10, 20], [10, 20], [10, 20], [10, 20, 2], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20]]), maintenant, [tomate]);
+  assert.equal(calme.length, 0);
+  assert.equal(M.alertesJardin(null, maintenant, [tomate]).length, 0);
+  assert.equal(M.previsions(m([[10, 20, 0, 20, 95], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20]]), le('2027-05-10'), 7)[0].ciel, 'orage');
+});

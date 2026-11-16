@@ -11,7 +11,7 @@ function reponseOpenMeteo(jours, pluiesHoraires) {
   });
   return {
     latitude: 48.85, longitude: 2.35, elevation: 42, timezone: 'Europe/Paris',
-    daily: { time: jours.map(function (j) { return j.date; }), temperature_2m_min: jours.map(function (j) { return j.tmin; }), temperature_2m_max: jours.map(function (j) { return j.tmax; }), precipitation_sum: jours.map(function (j) { return j.pluie || 0; }) },
+    daily: { time: jours.map(function (j) { return j.date; }), temperature_2m_min: jours.map(function (j) { return j.tmin; }), temperature_2m_max: jours.map(function (j) { return j.tmax; }), precipitation_sum: jours.map(function (j) { return j.pluie || 0; }), precipitation_probability_max: jours.map(function (j) { return j.proba == null ? 10 : j.proba; }), wind_gusts_10m_max: jours.map(function (j) { return j.rafales == null ? 25 : j.rafales; }), weather_code: jours.map(function (j) { return j.code == null ? 2 : j.code; }) },
     hourly: { time: heures, precipitation: pluie }
   };
 }
@@ -21,7 +21,7 @@ function serie(debutISO, temps) {
   return temps.map(function (t, i) {
     var x = new Date(d.getTime() + i * 86400000);
     var m = x.getMonth() + 1, j = x.getDate();
-    return { date: x.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (j < 10 ? '0' : '') + j, tmin: t[0], tmax: t[1], pluie: t[2] || 0 };
+    return { date: x.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (j < 10 ? '0' : '') + j, tmin: t[0], tmax: t[1], pluie: t[2] || 0, rafales: t[3], code: t[4] };
   });
 }
 module.exports = { reponseOpenMeteo: reponseOpenMeteo, serie: serie };

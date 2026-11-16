@@ -517,13 +517,126 @@
     return proposees.slice(0, 5);
   }
 
+  /* ---------- Météo : alertes jardin ---------- */
+  REGLES.alertes = { gel: 0, geleeBlanche: 2, chaleur: 32, chaleurForte: 35, fortePluie: 20, rafales: 60, secheresseJours: 7, secheresseTmax: 25 };
+  var CODES_METEO = [
+    [0, '☀️', 'ensoleillé'], [1, '🌤️', 'plutôt ensoleillé'], [2, '⛅', 'éclaircies'], [3, '☁️', 'couvert'],
+    [45, '🌫️', 'brouillard'], [51, '🌦️', 'bruine'], [61, '🌧️', 'pluie'], [66, '🌧️', 'pluie verglaçante'],
+    [71, '🌨️', 'neige'], [80, '🌦️', 'averses'], [85, '🌨️', 'averses de neige'], [95, '⛈️', 'orage']
+  ];
+  function ciel(code) {
+    if (code == null) return { icone: '', texte: '' };
+    var r = CODES_METEO[0];
+    CODES_METEO.forEach(function (c) { if (code >= c[0]) r = c; });
+    return { icone: r[1], texte: r[2] };
+  }
+
+  /**
+   * Alertes utiles au jardin pour les prochains jours, traduites en gestes.
+   * actives : [{ plantation, culture, espace }] cultures en cours
+   * Renvoie [{ type, gravite: 'alerte'|'attention'|'info', titre, quand, date, conseil, concerne: [noms] }]
+   */
+  function alertesJardin(meteo, maintenant, actives, horizon) {
+    var A = REGLES.alertes, res = [];
+    if (!meteo || !meteo.jours) return res;
+    var auj = isoDate(jourDe(maintenant));
+    var futurs = meteo.jours.filter(function (j) { return j.date >= auj; }).slice(0, horizon || 7);
+    if (!futurs.length) return res;
+    actives = actives || [];
+    var dehors = actives;
+    function noms(filtre) {
+      var vus = {};
+      return dehors.filter(filtre).map(function (a) { return a.culture.nom; }).filter(function (n) { return vus[n] ? false : (vus[n] = true); });
+    }
+    function quandTxt(j) { var d = lireDate(j.date); var n = ecartJours(maintenant, d); return n === 0 ? 'aujourd’hui' : n === 1 ? 'demain' : JOURS[d.getDay()] + ' ' + d.getDate(); }
+
+    // Gel / gelée blanche : la nuit la plus froide sous le seuil
+    var froid = futurs.reduce(function (a, j) { return j.tmin < a.tmin ? j : a; });
+    if (froid.tmin <= A.geleeBlanche) {
+      var sensibles = noms(function (a) { return a.culture.froid.sensible || froid.tmin <= a.culture.froid.gelTolere; });
+      var gel = froid.tmin <= A.gel;
+      res.push({
+        type: 'gel', gravite: sensibles.length ? 'alerte' : (gel ? 'attention' : 'info'), date: froid.date, quand: quandTxt(froid),
+        titre: (gel ? 'Gel annoncé' : 'Risque de gelée blanche') + ' : ' + fmtT(froid.tmin) + ' la nuit',
+        conseil: sensibles.length
+          ? 'Protège la veille au soir avec un voile d’hivernage (ou un vieux drap), sans qu’il touche les feuilles si possible. Ne plante rien de frileux dehors.'
+          : 'Pas de plantation frileuse dehors cette semaine (tomate, courgette, haricot…). Les cultures d’hiver (mâche, épinard, ail) le supportent.',
+        concerne: sensibles
+      });
+    }
+    // Chaleur
+    var chaud = futurs.reduce(function (a, j) { return j.tmax > a.tmax ? j : a; });
+    if (chaud.tmax >= A.chaleur) {
+      res.push({
+        type: 'chaleur', gravite: chaud.tmax >= A.chaleurForte ? 'alerte' : 'attention', date: chaud.date, quand: quandTxt(chaud),
+        titre: 'Forte chaleur : ' + fmtT(chaud.tmax),
+        conseil: 'Arrose tôt le matin, au pied, et vérifie les bacs matin et soir. Paille la terre. Ombre les salades et les semis (voile ou cagette). Évite de semer ou planter en pleine chaleur.',
+        concerne: noms(function (a) { return a.culture.arrosage.besoin === 'eleve' || a.culture.id === 'laitue' || a.culture.id === 'epinard'; })
+      });
+    }
+    // Forte pluie
+    var pluvieux = futurs.filter(function (j) { return j.pluie >= A.fortePluie; })[0];
+    if (pluvieux) {
+      res.push({
+        type: 'pluie', gravite: 'attention', date: pluvieux.date, quand: quandTxt(pluvieux),
+        titre: 'Forte pluie : ' + arrondi(pluvieux.pluie) + ' mm',
+        conseil: 'Inutile d’arroser les espaces à ciel ouvert. Les jeunes semis peuvent être couchés : un voile les protège. Vérifie que les bacs s’égouttent bien (trous au fond).',
+        concerne: []
+      });
+    }
+    // Orage
+    var orage = futurs.filter(function (j) { return j.code != null && j.code >= 95; })[0];
+    if (orage) {
+      res.push({
+        type: 'orage', gravite: 'attention', date: orage.date, quand: quandTxt(orage),
+        titre: 'Orage possible',
+        conseil: 'Grêle et rafales possibles : vérifie les tuteurs, rentre les pots fragiles, un voile tendu peut limiter les dégâts de grêle.',
+        concerne: noms(function (a) { return /tomate|concombre|poivron/.test(a.culture.id); })
+      });
+    }
+    // Vent
+    var venteux = futurs.reduce(function (a, j) { return (j.rafales || 0) > (a.rafales || 0) ? j : a; });
+    if ((venteux.rafales || 0) >= A.rafales && !(orage && orage.date === venteux.date)) {
+      res.push({
+        type: 'vent', gravite: 'attention', date: venteux.date, quand: quandTxt(venteux),
+        titre: 'Vent fort : rafales à ' + Math.round(venteux.rafales) + ' km/h',
+        conseil: 'Vérifie les attaches des tuteurs et fixe les voiles. Le vent dessèche vite les bacs : vérifie la terre le lendemain.',
+        concerne: noms(function (a) { return /tomate|concombre|poivron|courgette/.test(a.culture.id); })
+      });
+    }
+    // Sécheresse : peu de pluie récente et à venir, temps chaud
+    var tousJours = meteo.jours.filter(function (j) { return j.date >= isoDate(ajouterJours(jourDe(maintenant), -3)); }).slice(0, A.secheresseJours + 3);
+    var cumul = tousJours.reduce(function (t, j) { return t + (j.pluie || 0); }, 0);
+    var tmaxMoy = futurs.reduce(function (t, j) { return t + j.tmax; }, 0) / futurs.length;
+    if (tousJours.length >= A.secheresseJours && cumul < 3 && tmaxMoy >= A.secheresseTmax) {
+      res.push({
+        type: 'secheresse', gravite: 'info', date: futurs[0].date, quand: 'cette semaine',
+        titre: 'Temps sec : presque pas de pluie',
+        conseil: 'Même les espaces à ciel ouvert vont dépendre de toi. Arrose copieusement mais moins souvent, et paille pour garder l’humidité.',
+        concerne: []
+      });
+    }
+    var ordre = { alerte: 0, attention: 1, info: 2 };
+    return res.sort(function (a, b) { return ordre[a.gravite] - ordre[b.gravite] || (a.date < b.date ? -1 : 1); });
+  }
+
+  /** Jours de prévision à afficher (à partir d'aujourd'hui) avec le ciel décodé */
+  function previsions(meteo, maintenant, nb) {
+    if (!meteo || !meteo.jours) return [];
+    var auj = isoDate(jourDe(maintenant));
+    return meteo.jours.filter(function (j) { return j.date >= auj; }).slice(0, nb || 7).map(function (j) {
+      var c = ciel(j.code);
+      return Object.assign({}, j, { jour: lireDate(j.date), icone: c.icone, ciel: c.texte, gel: j.tmin <= REGLES.alertes.gel, chaleur: j.tmax >= REGLES.alertes.chaleur });
+    });
+  }
+
   var Moteur = {
     REGLES: REGLES, NIVEAUX: NIVEAUX, GESTES: GESTES, NOMS_MODES: NOMS_MODES,
     cultures: function () { return CULTURES; }, culture: culture, gestesDe: gestesDe, modesDe: modesDe, nomGeste: nomGeste, gesteDuMode: gesteDuMode,
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    arrosage: arrosage,
+    arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
   racine.Moteur = Moteur;
