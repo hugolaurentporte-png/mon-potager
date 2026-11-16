@@ -1,0 +1,11 @@
+{
+  "name": "mon-potager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "V1 d'une application de potager pour débutants (web, mobile, en français)",
+  "scripts": {
+    "start": "npx --yes http-server -p 8080 -c-1 .",
+    "test": "node --test tests/moteur.test.js",
+    "e2e": "node tests/e2e.js"
+  }
+}
