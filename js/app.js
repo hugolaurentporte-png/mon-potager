@@ -62,7 +62,7 @@
   function entete(titre, retour) {
     var p = S.etat.profil;
     return '<header class="entete">' + (retour ? '<a class="retour" href="' + retour + '">‹ Retour</a>' : '') +
-      '<h1>' + titre + '</h1>' + (p && p.commune ? '<p class="lieu">' + esc(p.commune) + ' · climat ' + esc(M.zone(zoneId()).nom.toLowerCase()) + '</p>' : '') + '</header>';
+      '<h1>' + titre + '</h1>' + (p && p.commune ? '<p class="lieu">📍 ' + esc(p.commune) + ' · ' + (zoneId() === 'local' ? 'calendrier calé sur ta commune' : 'climat ' + esc(M.zone(zoneId()).nom.toLowerCase())) + '</p>' : '') + '</header>';
   }
 
   /* ---------- Calculs agrégés ---------- */
@@ -132,7 +132,7 @@
       if (!esp.length) return true;
       return esp.some(function (e) { return M.compatibilite(s.culture, e).ok; });
     });
-    h += '<section class="carte"><h2>🌱 À semer ou planter cette semaine</h2>';
+    h += '<section class="carte"><h2>🌱 À semer ou planter cette semaine' + (S.etat.profil && S.etat.profil.commune ? ' <span class="petit">· ' + esc(S.etat.profil.commune) + '</span>' : '') + '</h2>';
     if (!sug.length) h += '<p>Pas de semis ni de plantation recommandés cette semaine' + (meteo() ? ' (saison ou météo défavorable)' : '') + '. Regarde le calendrier d’une culture pour la prochaine période.</p>';
     else h += sug.slice(0, 8).map(function (s) {
       return '<a class="ligne" href="#/culture/' + s.culture.id + '"><strong>' + s.culture.emoji + ' ' + esc(s.culture.nom) + '</strong> ' + badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p></a>';
@@ -370,7 +370,8 @@
       '<label class="champ">Climat <select data-action="choisir-zone">' + Object.keys(window.CLIMATS.zones).map(function (k) {
         var z = window.CLIMATS.zones[k]; return '<option value="' + k + '"' + (zoneId() === k ? ' selected' : '') + '>' + esc(z.nom) + ' — ' + esc(z.description) + '</option>';
       }).join('') + '</select></label>' +
-      (p.zoneAuto && p.zone !== p.zoneAuto ? '<p class="petit">Détecté automatiquement : ' + esc(M.zone(p.zoneAuto).nom) + '. Tu l’as modifié.</p>' : '<p class="petit">Déduit de ta commune ; modifie-le si ton jardin est plus chaud ou plus froid que la moyenne.</p>') +
+      (p.zone === 'local' && p.climatLocal ? '<p class="petit" data-test="climat-local">Calendrier calé sur les gelées des ' + p.climatLocal.annees + ' dernières années à ' + esc(p.commune) + ' : dernières gelées vers le ' + esc(D.format(D.lire('2001-' + p.climatLocal.derniere))) + ', premières vers le ' + esc(D.format(D.lire('2001-' + p.climatLocal.premiere))) + '. Si ton jardin est plus abrité ou plus exposé que la moyenne, choisis une autre zone.</p>'
+        : (typeof p.lat === 'number' && !p.climatLocal ? '<p class="petit">Calcul du climat de ta commune en cours (historique des gelées)… En attendant : zone ' + esc(M.zone(p.zoneAuto || zoneId()).nom.toLowerCase()) + '.</p>' : '<p class="petit">Déduit de ton département ; modifie-le si ton jardin est plus chaud ou plus froid que la moyenne.</p>')) +
       '</section>';
     h += '<section class="carte"><h2>Mes bacs et parcelles</h2>';
     if (!S.etat.espaces.length) h += '<p>Aucun espace pour l’instant.</p>';
@@ -511,7 +512,7 @@
   document.addEventListener('change', function (ev) {
     var t = ev.target;
     if (t.matches('[data-action="choisir-espace"]')) aller('#/suggestions?espace=' + t.value);
-    else if (t.matches('[data-action="choisir-zone"]')) { S.definirProfil({ zone: t.value }); flash('Climat mis à jour'); rendre(); }
+    else if (t.matches('[data-action="choisir-zone"]')) { S.definirProfil({ zone: t.value, zoneManuelle: t.value !== 'local' }); flash('Climat mis à jour'); rendre(); }
     else if (t.matches('[data-form="demarrer"] select[name="espace"]')) {
       var f = t.form, c = M.culture(f.getAttribute('data-culture')), e = S.espace(t.value), cap = M.capacite(c, e, S.actives(e.id));
       f.querySelector('input[name="quantite"]').value = Math.max(1, cap.libre || 1);
@@ -559,10 +560,27 @@
     }
   });
 
+  function calculerClimatLocal() {
+    var p = S.etat.profil;
+    if (!p || typeof p.lat !== 'number' || p.climatLocalEssai === p.lat + ',' + p.lon) return;
+    window.Meteo.climatLocal(p.lat, p.lon).then(function (cl) {
+      var q = S.etat.profil;
+      if (!q || q.lat !== p.lat) return;
+      if (!cl) return; // réessayé au prochain lancement
+      var champs = { climatLocal: cl, climatLocalEssai: p.lat + ',' + p.lon };
+      if (!q.zoneManuelle) champs.zone = 'local';
+      S.definirProfil(champs);
+      window.CLIMATS.definirLocale(cl, q.commune);
+      flash('Calendrier calé sur les gelées de ' + q.commune);
+      rendre();
+    });
+  }
   function choisirCommune(c) {
     var fin = function (alt) {
       var z = window.CLIMATS.detecter(c.lat, c.lon, alt);
-      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z });
+      window.CLIMATS.definirLocale(null);
+      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z, zoneManuelle: false, climatLocal: null, climatLocalEssai: null });
+      calculerClimatLocal();
       flash('Commune enregistrée : climat ' + M.zone(z).nom.toLowerCase());
       chargerMeteo(true);
     };
@@ -583,7 +601,14 @@
     if (!a || ev.defaultPrevented || ev.metaKey || ev.ctrlKey) return;
     ev.preventDefault(); aller(a.getAttribute('href'));
   }, true);
-  S.surChargement(function () { rendre(); chargerMeteo(false); });
+  function preparerClimat() {
+    var p = S.etat.profil;
+    window.CLIMATS.definirLocale(p && p.climatLocal, p && p.commune);
+    if (p && p.zone === 'local' && !p.climatLocal) S.definirProfil({ zone: p.zoneAuto || 'tempere' });
+    calculerClimatLocal();
+  }
+  preparerClimat();
+  S.surChargement(function () { preparerClimat(); rendre(); chargerMeteo(false); });
   // Les conseils d'arrosage dépendent de l'heure : on rafraîchit l'écran régulièrement.
   setInterval(function () { if (!document.querySelector('input:focus, select:focus')) rendre(); }, 10 * 60 * 1000);
   rendre();

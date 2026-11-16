@@ -205,3 +205,16 @@ test('Alertes météo du jardin', () => {
   assert.equal(M.alertesJardin(null, maintenant, [tomate]).length, 0);
   assert.equal(M.previsions(m([[10, 20, 0, 20, 95], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20]]), le('2027-05-10'), 7)[0].ciel, 'orage');
 });
+
+test('Climat local : gelées réelles de la commune', () => {
+  const histo = (fin, debut) => { const j = []; for (let y = 2016; y <= 2025; y++) for (let d = new Date(y, 0, 1, 12); d.getFullYear() === y; d = new Date(d.getTime() + 864e5)) { const iso = M.dates.iso(d), md = iso.slice(5); j.push({ date: iso, tmin: (md <= fin || md >= debut) ? -1 : 6 }); } return j; };
+  const lieu = M.gelees(histo('03-25', '11-12')), ref = M.gelees(histo('04-10', '10-28'));
+  assert.equal(lieu.derniere, '03-25'); assert.equal(lieu.premiere, '11-12'); assert.equal(lieu.annees, 10);
+  const cl = M.climatLocal(lieu, ref);
+  assert.equal(cl.decalagePrintemps, -16); assert.equal(cl.decalageAutomne, 15);
+  const C = require('../data/climats.js'); C.definirLocale(cl, 'Test');
+  const t = M.culture('tomate'), d = le('2027-04-27');
+  assert.equal(M.niveauClimatique(t, 'plantation', d, 'tempere').niveau, 1);
+  assert.ok(M.niveauClimatique(t, 'plantation', d, 'local').niveau >= 2, 'plantation plus tôt dans une commune plus douce');
+  C.definirLocale(null);
+});

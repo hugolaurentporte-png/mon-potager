@@ -66,3 +66,14 @@ simples**, à ajuster avec l'usage.
 - Détection automatique de la zone (frontières tracées grossièrement).
 - Ail d'automne en climat de montagne, fraisiers plantés au printemps
   (récolte faible la première année, non modélisé).
+
+## Climat de la commune (ajout)
+
+Quand la commune est localisée, l'app télécharge 10 ans de températures minimales
+(archive Open-Meteo) pour la commune **et** pour Orléans, lieu de référence des
+fiches. Elle calcule la date médiane des dernières gelées (≤ 0 °C, janvier-juin)
+et des premières gelées (juillet-décembre), puis décale le calendrier de l'écart
+entre les deux (borné à ± 45 jours). La même méthode étant appliquée des deux
+côtés, l'écart reste cohérent même si la donnée (maillage de modèle, température
+sous abri à 2 m) diffère d'une station météo. À valider : un jardin en cuvette
+ou très abrité peut s'écarter de plusieurs semaines de la moyenne de la commune.

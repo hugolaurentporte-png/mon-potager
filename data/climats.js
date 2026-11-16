@@ -58,6 +58,16 @@ var CLIMATS = {
     }
   },
 
+  /** Zone « Ma commune » calculée à partir des gelées réelles (voir js/meteo.js) */
+  definirLocale: function (cl, commune) {
+    if (!cl) { delete this.zones.local; return; }
+    this.zones.local = {
+      id: 'local', nom: 'Ma commune (gelées réelles)',
+      description: 'dernières gelées vers le ' + cl.derniere.split('-').reverse().join('/') + ', premières vers le ' + cl.premiere.split('-').reverse().join('/') + (commune ? ' à ' + commune : '') + ' (' + cl.annees + ' ans)',
+      decalagePrintemps: cl.decalagePrintemps, decalageAutomne: cl.decalageAutomne, dernieresGelees: cl.derniere
+    };
+  },
+
   /*
    * Détection approximative de la zone à partir des coordonnées.
    * Volontairement simple : l'utilisateur peut toujours corriger la zone

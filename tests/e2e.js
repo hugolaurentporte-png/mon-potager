@@ -36,6 +36,16 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   page.on('pageerror', e => { console.error('Erreur JS :', e); process.exitCode = 1; });
   await ctx.route('https://geo.api.gouv.fr/**', r => r.fulfill({ json: [{ nom: 'Paris', code: '75056', codeDepartement: '75', codesPostaux: ['75011'], centre: { type: 'Point', coordinates: [2.379, 48.859] } }] }));
   await ctx.route('https://api.open-meteo.com/v1/elevation**', r => r.fulfill({ json: { elevation: [42] } }));
+  // Historique : gelées jusqu'au 25 mars dans la commune, jusqu'au 10 avril au lieu de référence
+  const historique = (url) => {
+    const ref = /latitude=47\.9/.test(url), time = [], tmin = [];
+    for (let y = 2016; y <= 2025; y++) for (let d = new Date(Date.UTC(y, 0, 1)); d.getUTCFullYear() === y; d.setUTCDate(d.getUTCDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10), md = iso.slice(5);
+      time.push(iso); tmin.push(md <= (ref ? '04-10' : '03-25') || md >= (ref ? '10-28' : '11-12') ? -2 : 8);
+    }
+    return { daily: { time, temperature_2m_min: tmin } };
+  };
+  await ctx.route('https://archive-api.open-meteo.com/**', r => r.fulfill({ json: historique(r.request().url()) }));
   await ctx.route('https://api.open-meteo.com/v1/forecast**', r => meteoCourante ? r.fulfill({ json: meteoCourante }) : r.abort('failed'));
 
   const heure = async (iso) => { await page.clock.setFixedTime(new Date(iso)); };
@@ -54,7 +64,10 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   await page.click('button[data-action="choisir-commune"]');
   await page.waitForSelector('[data-test="commune"]');
   assert.match(await page.innerText('main'), /Paris/);
-  assert.equal(await page.inputValue('select[data-action="choisir-zone"]'), 'tempere');
+  await page.waitForSelector('[data-test="climat-local"]');
+  assert.equal(await page.inputValue('select[data-action="choisir-zone"]'), 'local');
+  assert.match(await page.innerText('[data-test="climat-local"]'), /dernières gelées vers le 25 mars, premières vers le 12 novembre/);
+  await page.selectOption('select[data-action="choisir-zone"]', 'tempere');
   const ajouterEspace = async (nom, type, L, l, p, pluie) => {
     await page.goto(base + '#/espace/nouveau');
     await page.fill('input[name="nom"]', nom);

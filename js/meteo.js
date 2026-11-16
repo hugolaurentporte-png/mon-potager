@@ -83,5 +83,23 @@
     });
   }
 
-  racine.Meteo = { chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser };
+  /* Historique : températures minimales des 10 dernières années (Open-Meteo, archive) */
+  var REFERENCE = { lat: 47.90, lon: 1.90 }; // Orléans : lieu de référence des fiches (climat tempéré)
+  function historiqueTmin(lat, lon) {
+    var fin = new Date().getFullYear() - 1, debut = fin - 9;
+    var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + debut + '-01-01&end_date=' + fin + '-12-31&daily=temperature_2m_min&timezone=auto';
+    return avecDelai(url, 20000).then(function (r) {
+      var d = r.daily || {};
+      return (d.time || []).map(function (t, i) { return { date: t, tmin: d.temperature_2m_min[i] }; });
+    });
+  }
+  /** Climat local d'un lieu → décalages par rapport à la référence, ou null si indisponible */
+  function climatLocal(lat, lon) {
+    var M = racine.Moteur;
+    return Promise.all([historiqueTmin(lat, lon), historiqueTmin(REFERENCE.lat, REFERENCE.lon)]).then(function (r) {
+      return M.climatLocal(M.gelees(r[0]), M.gelees(r[1]));
+    }).catch(function () { return null; });
+  }
+
+  racine.Meteo = { chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
 })(typeof window !== 'undefined' ? window : globalThis);

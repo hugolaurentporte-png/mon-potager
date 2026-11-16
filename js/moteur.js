@@ -630,12 +630,55 @@
     });
   }
 
+  /* ---------- Climat local (historique des gelées) ---------- */
+  function jourAnnee(d) { return Math.round((jourDe(d) - new Date(d.getFullYear(), 0, 1, 12)) / JOUR) + 1; }
+  function mmjjDepuisJour(j) { var d = ajouterJours(new Date(2001, 0, 1, 12), j - 1); var m = d.getMonth() + 1, x = d.getDate(); return (m < 10 ? '0' : '') + m + '-' + (x < 10 ? '0' : '') + x; }
+  function mediane(t) { var a = t.slice().sort(function (x, y) { return x - y; }); var n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) : null; }
+  /**
+   * À partir de températures minimales quotidiennes passées [{date, tmin}],
+   * date médiane des dernières gelées de printemps (janv.-juin) et des premières
+   * gelées d'automne (juil.-déc.). Seuil : tmin ≤ 0 °C.
+   */
+  function gelees(jours) {
+    var parAn = {};
+    jours.forEach(function (j) {
+      if (j.tmin == null) return;
+      var y = j.date.slice(0, 4); (parAn[y] = parAn[y] || []).push(j);
+    });
+    var derniers = [], premiers = [];
+    Object.keys(parAn).forEach(function (y) {
+      var js = parAn[y]; if (js.length < 300) return;
+      var dern = null, prem = null;
+      js.forEach(function (j) {
+        if (j.tmin > 0) return;
+        var m = +j.date.slice(5, 7), n = jourAnnee(lireDate(j.date));
+        if (m <= 6) dern = n; else if (prem == null) prem = n;
+      });
+      derniers.push(dern == null ? 32 : dern);   // aucune gelée : 1er février
+      premiers.push(prem == null ? 365 : prem);  // aucune gelée : fin décembre
+    });
+    if (derniers.length < 3) return null;
+    var d = Math.round(mediane(derniers)), p = Math.round(mediane(premiers));
+    return { derniere: mmjjDepuisJour(d), premiere: mmjjDepuisJour(p), jourDerniere: d, jourPremiere: p, annees: derniers.length };
+  }
+  /** Décalages de calendrier d'un lieu par rapport au lieu de référence (même méthode des deux côtés) */
+  function climatLocal(lieu, reference) {
+    if (!lieu || !reference) return null;
+    var borne = function (x) { return Math.max(-45, Math.min(45, x)); };
+    return {
+      derniere: lieu.derniere, premiere: lieu.premiere, annees: lieu.annees,
+      decalagePrintemps: borne(lieu.jourDerniere - reference.jourDerniere),
+      decalageAutomne: borne(lieu.jourPremiere - reference.jourPremiere)
+    };
+  }
+
   var Moteur = {
     REGLES: REGLES, NIVEAUX: NIVEAUX, GESTES: GESTES, NOMS_MODES: NOMS_MODES,
     cultures: function () { return CULTURES; }, culture: culture, gestesDe: gestesDe, modesDe: modesDe, nomGeste: nomGeste, gesteDuMode: gesteDuMode,
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
+    gelees: gelees, climatLocal: climatLocal,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
