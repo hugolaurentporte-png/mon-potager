@@ -149,6 +149,7 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   assert.match(await page.innerText('main'), /Récolte proche[\s\S]*Tomate/);
   await page.goto(urlTomate);
   await page.click('[data-test="terminer"]');
+  await page.click('[data-test="terminer"]');
   await page.waitForSelector('[data-test="ensuite"]');
   assert.match(await page.innerText('[data-test="ensuite"]'), /se libère/);
   await capture('tomate-ensuite');

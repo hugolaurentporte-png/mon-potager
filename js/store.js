@@ -1,24 +1,71 @@
 /*
- * Enregistrement local (dans le navigateur, localStorage).
- * Aucune donnée n'est envoyée sur un serveur.
+ * Enregistrement des données du potager.
+ *  - Toujours une copie dans le navigateur (localStorage), quand il le permet.
+ *  - Dans l'app hébergée sur claude.ai : copie privée dans ton espace Claude
+ *    (capacité « db »), retrouvée sur tous tes appareils.
  */
 (function (racine) {
   var CLE = 'potager.v1';
-  var vide = function () { return { version: 1, profil: null, espaces: [], plantations: [], arrosages: [], reports: [] }; };
+  var vide = function () { return { version: 1, maj: 0, profil: null, espaces: [], plantations: [], arrosages: [], reports: [] }; };
   var etat = charger();
+  var distant = null, ecritureEnCours = false, aRecrire = false, minuteur = null;
+  var abonnes = [];
 
   function charger() {
     try {
       var e = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (e && e.version === 1) return Object.assign(vide(), e);
-    } catch (err) { /* données illisibles : on repart de zéro */ }
+    } catch (err) { /* stockage indisponible ou illisible */ }
     return vide();
   }
-  function sauver() { try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (e) { alert('Impossible d’enregistrer sur cet appareil (stockage plein ou navigation privée).'); } }
+  function sauverLocal() { try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (e) { /* navigation privée */ } }
+  function sauver() {
+    etat.maj = Date.now();
+    sauverLocal();
+    if (distant) { clearTimeout(minuteur); minuteur = setTimeout(envoyer, 600); }
+  }
+  function envoyer() {
+    if (!distant) return;
+    if (ecritureEnCours) { aRecrire = true; return; }
+    ecritureEnCours = true;
+    distant.set({ json: JSON.stringify(etat), maj: etat.maj }).catch(function (e) {
+      Store.erreurSynchro = (e && e.code) || 'erreur';
+    }).then(function () {
+      ecritureEnCours = false;
+      if (aRecrire) { aRecrire = false; envoyer(); }
+    });
+  }
+
+  /* Connexion à l'enregistrement claude.ai, si la page y est hébergée. */
+  function connecter() {
+    if (!(racine.claude && racine.claude.use)) return;
+    Promise.all([racine.claude.use('db'), racine.claude.use('user')]).then(function (r) {
+      var db = r[0], user = r[1];
+      if (!db || !user) return null;
+      return user.id().then(function (uid) {
+        if (!uid) return null;
+        var ref = db.doc('data/users/' + uid + '/potager');
+        return ref.get().then(function (snap) {
+          distant = ref;
+          Store.synchro = true;
+          var d = snap.exists ? snap.data() : null;
+          if (d && d.json && (d.maj || 0) > (etat.maj || 0)) {
+            try { etat = Object.assign(vide(), JSON.parse(d.json)); sauverLocal(); } catch (e) { /* ignorer */ }
+          } else if (etat.maj) {
+            envoyer();
+          }
+          abonnes.forEach(function (f) { f(); });
+        });
+      });
+    }).catch(function () { /* pas de synchronisation : le navigateur garde les données */ });
+  }
+
   function id(prefixe) { return prefixe + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
 
   var Store = {
+    synchro: false,
     get etat() { return etat; },
+    surChargement: function (f) { abonnes.push(f); },
     recharger: function () { etat = charger(); },
     definirProfil: function (p) { etat.profil = Object.assign({}, etat.profil || {}, p); sauver(); },
     ajouterEspace: function (e) { e.id = id('esp'); etat.espaces.push(e); sauver(); return e; },
@@ -48,4 +95,5 @@
     toutEffacer: function () { etat = vide(); sauver(); }
   };
   racine.Store = Store;
+  connecter();
 })(typeof window !== 'undefined' ? window : globalThis);

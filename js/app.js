@@ -14,7 +14,20 @@
   function aujourdhuiISO() { return D.iso(maintenant()); }
   function zoneId() { return (S.etat.profil && S.etat.profil.zone) || 'tempere'; }
   function meteo() { return meteoEtat.meteo; }
-  function aller(h) { if (location.hash === h) rendre(); else location.hash = h; }
+  // Navigation interne : fonctionne aussi dans un cadre où l'adresse ne peut pas changer.
+  var route = /^#\//.test(location.hash) ? location.hash : '#/';
+  function aller(h) {
+    route = h; rendre(); window.scrollTo(0, 0);
+    try { if (location.hash !== h) history.replaceState(null, '', h); } catch (e) { /* adresse figée */ }
+  }
+  // Confirmation dans la page (les boîtes de dialogue du navigateur peuvent être bloquées)
+  function confirmer(b, fn) {
+    if (b.getAttribute('data-arme') === '1') { fn(); return; }
+    b.setAttribute('data-arme', '1');
+    b.setAttribute('data-texte', b.textContent);
+    b.textContent = 'Touche encore pour confirmer';
+    setTimeout(function () { if (b.isConnected) { b.removeAttribute('data-arme'); b.textContent = b.getAttribute('data-texte'); } }, 4000);
+  }
   function badge(nomGeste, c) {
     return '<span class="badge n' + c.niveau + '">' + esc(nomGeste) + ' · ' + esc(c.libelle) + '</span>';
   }
@@ -32,7 +45,8 @@
   }
   function bandeauMeteo() {
     var p = S.etat.profil;
-    if (!p || !p.lat) return '';
+    if (!p || !p.commune) return '';
+    if (typeof p.lat !== 'number') return '<div class="meteo meteo-ko" data-test="meteo"><strong>Météo non disponible</strong> : ta commune n’a pas pu être localisée. Le calendrier climatique reste valable, mais le conseil du jour n’est pas affiné (gel, chaleur, pluie).</div>';
     var txt;
     if (meteoEtat.etat === 'chargement') txt = 'Chargement de la météo…';
     else if (meteoEtat.meteo) {
@@ -402,7 +416,7 @@
 
   /* ---------- Routeur ---------- */
   function analyser() {
-    var brut = (location.hash || '#/').slice(1), q = {}, i = brut.indexOf('?');
+    var brut = (route || '#/').slice(1), q = {}, i = brut.indexOf('?');
     if (i >= 0) { brut.slice(i + 1).split('&').forEach(function (kv) { var p = kv.split('='); q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); brut = brut.slice(0, i); }
     return { parties: brut.split('/').filter(Boolean), q: q };
   }
@@ -436,12 +450,12 @@
     else if (a === 'humide') { S.terreHumide(id); flash('Noté : vérification reportée'); rendre(); }
     else if (a === 'premiere-recolte') { S.modifierPlantation(id, { premiereRecolte: aujourdhuiISO() }); flash('Bravo, première récolte notée !'); rendre(); }
     else if (a === 'recolte-unique') { S.modifierPlantation(id, { premiereRecolte: aujourdhuiISO(), terminee: aujourdhuiISO() }); flash('Récolte notée, l’espace est libéré'); rendre(); window.scrollTo(0, 0); }
-    else if (a === 'terminer') { if (confirm('Marquer cette culture comme terminée ? L’espace sera libéré.')) { S.modifierPlantation(id, { terminee: aujourdhuiISO() }); rendre(); window.scrollTo(0, 0); } }
+    else if (a === 'terminer') { confirmer(b, function () { S.modifierPlantation(id, { terminee: aujourdhuiISO() }); flash('Culture terminée : l’espace est libéré'); rendre(); window.scrollTo(0, 0); }); }
     else if (a === 'annuler-obs') { S.annulerObservation(id, b.getAttribute('data-etape')); rendre(); }
     else if (a === 'modifier-date') { var f = document.querySelector('[data-form="date-depart"]'); if (f) f.classList.toggle('cache'); }
-    else if (a === 'supprimer-plantation') { if (confirm('Supprimer ce suivi ?')) { S.supprimerPlantation(id); aller('#/potager'); } }
-    else if (a === 'supprimer-espace') { if (confirm('Supprimer cet espace ? Ses cultures en cours seront marquées terminées.')) { S.supprimerEspace(id); aller('#/potager'); } }
-    else if (a === 'tout-effacer') { if (confirm('Effacer toutes les données du potager sur cet appareil ?')) { S.toutEffacer(); aller('#/'); } }
+    else if (a === 'supprimer-plantation') { confirmer(b, function () { S.supprimerPlantation(id); aller('#/potager'); }); }
+    else if (a === 'supprimer-espace') { confirmer(b, function () { S.supprimerEspace(id); aller('#/potager'); }); }
+    else if (a === 'tout-effacer') { confirmer(b, function () { S.toutEffacer(); aller('#/'); }); }
     else if (a === 'recharger-meteo') { chargerMeteo(true); }
     else if (a === 'choisir-commune') {
       var c = JSON.parse(b.getAttribute('data-commune'));
@@ -487,7 +501,14 @@
         if (!liste.length) { zoneRes.innerHTML = '<p class="petit">Aucune commune trouvée.</p>'; return; }
         zoneRes.innerHTML = liste.map(function (c) { return '<button type="button" class="ligne choix" data-action="choisir-commune" data-commune="' + esc(JSON.stringify(c)) + '">' + esc(c.nom) + ' <span class="petit">' + esc(c.codePostal || '') + ' ' + esc(c.departement || '') + '</span></button>'; }).join('');
       }).catch(function () {
-        zoneRes.innerHTML = '<p class="petit">Recherche impossible (pas de connexion ?). Tu peux quand même choisir ton climat ci-dessous : le calendrier fonctionnera, sans la météo.</p>';
+        var dep = window.DEPARTEMENTS && window.DEPARTEMENTS.depuisCodePostal(fd.get('q'));
+        if (dep) {
+          S.definirProfil({ commune: 'Code postal ' + fd.get('q').trim(), codePostal: fd.get('q').trim(), lat: null, lon: null, altitude: null, zone: dep.zone, zoneAuto: dep.zone });
+          flash('Climat déduit du département ' + dep.departement);
+          rendre();
+        } else {
+          zoneRes.innerHTML = '<p class="petit">Recherche de commune impossible ici. Tape plutôt ton code postal (5 chiffres) : le climat sera déduit du département. Tu peux aussi le choisir ci-dessous.</p>';
+        }
       });
     }
   });
@@ -510,7 +531,13 @@
     window.Meteo.prevision(p.lat, p.lon, forcer).then(function (r) { meteoEtat = r; rendre(); });
   }
 
-  window.addEventListener('hashchange', function () { rendre(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', function () { if (/^#\//.test(location.hash) && location.hash !== route) { route = location.hash; rendre(); window.scrollTo(0, 0); } });
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest('a[href^="#/"]');
+    if (!a || ev.defaultPrevented || ev.metaKey || ev.ctrlKey) return;
+    ev.preventDefault(); aller(a.getAttribute('href'));
+  }, true);
+  S.surChargement(function () { rendre(); chargerMeteo(false); });
   // Les conseils d'arrosage dépendent de l'heure : on rafraîchit l'écran régulièrement.
   setInterval(function () { if (!document.querySelector('input:focus, select:focus')) rendre(); }, 10 * 60 * 1000);
   rendre();

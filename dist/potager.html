@@ -1,0 +1,2411 @@
+<title>Mon potager</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root {
+  --fond: #f6f5ef; --carte: #ffffff; --texte: #1f2a1f; --doux: #5b6b5b; --bord: #e2e6dc;
+  --vert: #166534; --vert-2: #3f6212; --sur-vert: #ffffff; --champ: #ffffff; --champ-bord: #c9d1c2;
+  --accent-fond: #f0fdf4; --accent-bord: #86efac; --calme: #f8faf5; --signe: #fefce8;
+  --meteo: #eef6ff; --meteo-bord: #cfe3fb; --meteo-ko: #fff7ed; --meteo-ko-bord: #fed7aa; --retard: #9a3412; --danger: #b91c1c;
+  --n0: #e5e7eb; --n0t: #374151; --n1: #fde68a; --n1t: #713f12; --n2: #bbf7d0; --n2t: #14532d; --n3: #15803d; --n3t: #ffffff;
+  --alerte: #fff4e5; --alerte-bord: #f59e0b; --toast: #1f2a1f; --toast-t: #ffffff; --marque: #111111;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
+  --vert: #4ade80; --vert-2: #a3d977; --sur-vert: #0c1a0f; --champ: #151b15; --champ-bord: #3a463a;
+  --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
+  --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
+  --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
+  --vert: #4ade80; --vert-2: #a3d977; --sur-vert: #0c1a0f; --champ: #151b15; --champ-bord: #3a463a;
+  --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
+  --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
+  --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; color-scheme: dark; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--texte); padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+main { max-width: 600px; margin: 0 auto; padding-block: 0 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: 1.5rem; margin: 0; }
+h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+p { margin: .35rem 0; }
+a { color: var(--vert); }
+.entete { padding: 16px 0 8px; }
+.retour { display: inline-block; margin-bottom: 6px; text-decoration: none; font-weight: 600; }
+.lieu, .petit { color: var(--doux); font-size: .88rem; }
+.intro { color: var(--doux); }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; margin: 12px 0; }
+.carte.accent { border-color: var(--accent-bord); background: var(--accent-fond); }
+.carte.calme { background: var(--calme); text-align: center; }
+.carte.alerte { border-color: var(--alerte-bord); background: var(--alerte); }
+.cache { display: none; }
+.meteo { background: var(--meteo); border: 1px solid var(--meteo-bord); border-radius: 12px; padding: 10px 12px; font-size: .9rem; margin: 8px 0; }
+.meteo-ko { background: var(--meteo-ko); border-color: var(--meteo-ko-bord); }
+.deux-entrees { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.grosse-entree { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 84px; padding: 12px; border-radius: 14px; background: var(--vert); color: var(--sur-vert); font-weight: 700; text-decoration: none; font-size: 1.02rem; }
+.grosse-entree:nth-child(2) { background: var(--vert-2); }
+.ligne { display: block; padding: 10px 0; border-top: 1px solid var(--bord); color: inherit; text-decoration: none; }
+.ligne:first-of-type { border-top: 0; }
+button.ligne { width: 100%; background: none; border: 0; border-top: 1px solid var(--bord); text-align: left; font: inherit; cursor: pointer; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; margin: 2px 0; }
+.n0 { background: var(--n0); color: var(--n0t); } .n1 { background: var(--n1); color: var(--n1t); }
+.n2 { background: var(--n2); color: var(--n2t); } .n3 { background: var(--n3); color: var(--n3t); }
+.raison { font-size: .9rem; color: var(--doux); }
+.conseil { margin: 8px 0; }
+.signe { background: var(--signe); border-radius: 8px; padding: 6px 8px; font-size: .92rem; }
+.bouton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 16px; border-radius: 10px; border: 0; background: var(--vert); color: var(--sur-vert); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.bouton.secondaire { background: var(--carte); color: var(--vert); border: 1.5px solid var(--vert); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.lien { background: none; border: 0; color: var(--vert); text-decoration: underline; font: inherit; font-size: .9rem; cursor: pointer; padding: 0 2px; }
+.danger { color: var(--danger); }
+.centre { text-align: center; }
+.grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tuile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; text-decoration: none; color: inherit; font-size: .9rem; text-align: center; }
+.tuile .emoji { font-size: 1.8rem; }
+.pastille { position: absolute; top: 8px; right: 8px; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--bord); }
+.legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--doux); margin: 10px 0; }
+.legende i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.calendrier { overflow: hidden; }
+.mois-ligne, .cal-ligne { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 6px; }
+.mois-ligne { grid-template-columns: 96px repeat(12, 1fr); font-size: .72rem; color: var(--doux); text-align: center; }
+.cal-ligne { margin: 4px 0; }
+.cal-nom { font-size: .78rem; line-height: 1.15; }
+.cal-cases { display: grid; grid-template-columns: repeat(36, 1fr); gap: 1px; height: 22px; }
+.cal-cases i { border-radius: 2px; }
+.cal-cases i.auj { outline: 2px solid var(--marque); outline-offset: 0; z-index: 1; }
+.jours { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 6px; }
+.jour { display: flex; flex-direction: column; align-items: center; border-radius: 8px; padding: 4px 0; font-size: .8rem; }
+.jour b { font-weight: 600; text-transform: capitalize; }
+.champ { display: block; margin: 10px 0; font-weight: 600; font-size: .95rem; border: 0; padding: 0; }
+.champ input, .champ select, .ligne-form input { display: block; width: 100%; margin-top: 4px; min-height: 44px; padding: 8px 10px; font: inherit; border: 1px solid var(--champ-bord); border-radius: 10px; background: var(--champ); color: var(--texte); }
+fieldset.champ legend { font-weight: 600; margin-bottom: 4px; }
+.radio { display: flex; align-items: center; gap: 8px; font-weight: 400; padding: 6px 0; min-height: 40px; }
+.radio input { width: 20px; height: 20px; }
+.deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ligne-form { display: flex; gap: 8px; align-items: flex-end; }
+.ligne-form input { flex: 1; }
+.arrosage { padding: 10px 0; border-top: 1px solid var(--bord); }
+.arrosage:first-of-type { border-top: 0; }
+.arrosage.a_verifier .conseil-arrosage { font-weight: 700; color: var(--retard); }
+.suggestion { padding: 12px 0; border-top: 1px solid var(--bord); }
+.suggestion:first-of-type { border-top: 0; }
+.observation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.observation input { min-height: 36px; font: inherit; background: var(--champ); color: var(--texte); border: 1px solid var(--champ-bord); border-radius: 8px; padding: 2px 6px; }
+.frise { list-style: none; padding: 0; margin: 0; }
+.frise li { position: relative; padding: 6px 0 6px 24px; font-size: .92rem; }
+.frise li::before { content: ''; position: absolute; left: 4px; top: 11px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--doux); background: var(--carte); }
+.frise li.fait::before, .frise li.passe::before { background: var(--vert); border-color: var(--vert); }
+details summary { cursor: pointer; color: var(--vert); font-weight: 600; margin-top: 8px; }
+ul { padding-left: 20px; margin: 4px 0; } li { margin: 4px 0; }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--carte); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); border-top: 1px solid var(--bord); padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+.nav a { display: flex; flex-direction: column; align-items: center; padding: 8px 2px; font-size: .74rem; color: var(--doux); text-decoration: none; }
+.nav a span { font-size: 1.3rem; }
+.nav a.actif { color: var(--vert); font-weight: 700; }
+#toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px); background: var(--toast); color: var(--toast-t); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: .25s; pointer-events: none; max-width: 90vw; font-size: .92rem; z-index: 20; }
+#toast.visible { opacity: 1; transform: translateX(-50%); }
+@media (max-width: 360px) { .grille { grid-template-columns: repeat(2, 1fr); } .deux-entrees { grid-template-columns: 1fr; } .mois-ligne, .cal-ligne { grid-template-columns: 78px 1fr; } .mois-ligne { grid-template-columns: 78px repeat(12, 1fr); } }
+
+:focus-visible { outline: 3px solid var(--vert); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+</style>
+<main id="app" aria-live="polite"></main>
+  <nav class="nav" aria-label="Navigation principale">
+    <a href="#/" data-onglet="accueil"><span>🏡</span>Cette semaine</a>
+    <a href="#/envie" data-onglet="planter"><span>🌱</span>Planter</a>
+    <a href="#/arrosage" data-onglet="arrosage"><span>💧</span>Arrosage</a>
+    <a href="#/potager" data-onglet="potager"><span>🧺</span>Mon potager</a>
+  </nav>
+  <div id="toast" role="status"></div>
+<script>
+/*
+ * Zones climatiques simplifiées pour la France métropolitaine.
+ *
+ * Toutes les fenêtres de culture des fiches (data/cultures.js) sont écrites
+ * pour la zone de RÉFÉRENCE « tempéré » (Bassin parisien, Centre, Val de Loire).
+ * Pour une autre zone, on décale les dates :
+ *   - les dates de janvier à juillet sont décalées de `decalagePrintemps` jours
+ *     (négatif = plus tôt, positif = plus tard) ;
+ *   - les dates d'août à décembre sont décalées de `decalageAutomne` jours
+ *     (positif = la saison dure plus longtemps).
+ *
+ * `dernieresGelees` : date moyenne approximative des dernières gelées de printemps
+ * (repère indicatif, cf. data/REFERENCES.md). Les saints de glace (11-13 mai)
+ * restent le repère populaire en zone tempérée.
+ */
+var CLIMATS = {
+  reference: 'tempere',
+  zones: {
+    mediterraneen: {
+      id: 'mediterraneen',
+      nom: 'Méditerranéen',
+      description: 'Pourtour méditerranéen, Corse, basse vallée du Rhône',
+      decalagePrintemps: -21,
+      decalageAutomne: 21,
+      dernieresGelees: '03-20'
+    },
+    oceanique: {
+      id: 'oceanique',
+      nom: 'Océanique',
+      description: 'Bretagne, façade atlantique, Sud-Ouest',
+      decalagePrintemps: -10,
+      decalageAutomne: 10,
+      dernieresGelees: '04-05'
+    },
+    tempere: {
+      id: 'tempere',
+      nom: 'Tempéré (référence)',
+      description: 'Bassin parisien, Centre, Val de Loire, Nord',
+      decalagePrintemps: 0,
+      decalageAutomne: 0,
+      dernieresGelees: '04-20'
+    },
+    continental: {
+      id: 'continental',
+      nom: 'Semi-continental',
+      description: 'Est, Centre-Est, Bourgogne, Alsace, Lorraine',
+      decalagePrintemps: 10,
+      decalageAutomne: -10,
+      dernieresGelees: '05-05'
+    },
+    montagne: {
+      id: 'montagne',
+      nom: 'Montagne (au-dessus de 700 m)',
+      description: 'Massifs, plateaux d’altitude',
+      decalagePrintemps: 25,
+      decalageAutomne: -20,
+      dernieresGelees: '05-25'
+    }
+  },
+
+  /*
+   * Détection approximative de la zone à partir des coordonnées.
+   * Volontairement simple : l'utilisateur peut toujours corriger la zone
+   * dans son profil.
+   */
+  detecter: function (lat, lon, altitude) {
+    if (typeof altitude === 'number' && altitude >= 700) return 'montagne';
+    // Corse
+    if (lat < 43.1 && lon > 8.4) return 'mediterraneen';
+    // Arc méditerranéen et basse vallée du Rhône (hors altitude)
+    if (lat < 44.3 && lon > 2.8 && !(typeof altitude === 'number' && altitude > 450)) return 'mediterraneen';
+    // Façade atlantique, Bretagne, Sud-Ouest
+    if (lon < -1.2) return 'oceanique';
+    if (lat < 46.5 && lon < 1.0) return 'oceanique';
+    // Est et Centre-Est
+    if (lon > 4.6 && lat > 45.3) return 'continental';
+    return 'tempere';
+  }
+};
+
+if (typeof module !== 'undefined') module.exports = CLIMATS;
+
+</script>
+<script>
+/*
+ * Étapes de croissance génériques.
+ * Chaque culture (data/cultures.js) définit son propre parcours, étape par étape,
+ * et peut remplacer les textes ci-dessous (« normal », « controle »).
+ *
+ *  - titre    : nom de l'étape attendue
+ *  - bouton   : libellé du bouton qui confirme l'observation
+ *  - normal   : ce qu'il est normal de voir en attendant cette étape
+ *  - controle : vérification simple si la fenêtre estimée est dépassée
+ */
+var ETAPES = {
+  levee: {
+    titre: 'Levée',
+    bouton: 'Ça a levé',
+    normal: 'Rien de visible pendant quelques jours : les graines gonflent et germent sous la terre. Garde la surface humide sans la détremper.',
+    controle: 'Gratte très délicatement la surface à un endroit : si les graines sont intactes, patiente (terre peut-être trop froide). Si elles ont pourri ou disparu, ou si une croûte dure s’est formée, ressème.'
+  },
+  plantation: {
+    titre: 'Mise en terre',
+    bouton: 'J’ai mis en terre',
+    normal: 'Les jeunes plants grandissent en godet. Ils sont prêts quand ils ont 4 à 6 vraies feuilles et que le calendrier « Mettre un plant en terre » est favorable.',
+    controle: 'Si les plants s’allongent et pâlissent, ils manquent de lumière : rapproche-les d’une fenêtre et mets-les dehors quelques heures par jour pour les endurcir avant la mise en terre.'
+  },
+  reprise: {
+    titre: 'Reprise',
+    bouton: 'Il a repris',
+    normal: 'Le plant peut piquer du nez un jour ou deux après la mise en terre : c’est normal. Il a repris quand il se redresse et que le cœur forme de nouvelles feuilles.',
+    controle: 'Si le plant reste flétri, vérifie que la terre est humide autour des racines (pas seulement en surface) et qu’il n’a pas été grignoté au collet (limaces, vers gris).'
+  },
+  feuilles: {
+    titre: 'Nouvelles feuilles',
+    bouton: 'Nouvelles feuilles',
+    normal: 'Après les deux premières feuilles (cotylédons), de vraies feuilles, différentes, apparaissent au centre.',
+    controle: 'Si la croissance stagne, regarde la couleur : des feuilles jaunes signalent souvent un excès d’eau ou un manque de nutriments ; trouées, des limaces ou altises.'
+  },
+  floraison: {
+    titre: 'Premières fleurs',
+    bouton: 'Premières fleurs',
+    normal: 'La plante prend du volume et forme des feuilles avant de fleurir.',
+    controle: 'Peu de fleurs ? Vérifie l’ensoleillement (6 h de soleil direct au moins pour les légumes-fruits) et évite les engrais trop riches en azote.'
+  },
+  fruits: {
+    titre: 'Premiers fruits',
+    bouton: 'Premiers fruits',
+    normal: 'Des fleurs s’ouvrent et fanent ; certaines tombent sans donner de fruit, c’est fréquent au début.',
+    controle: 'Si les fleurs tombent toutes : chaleur excessive (> 32 °C), nuits trop fraîches ou arrosage irrégulier. Arrose régulièrement au pied et patiente.'
+  },
+  recolte: {
+    titre: 'Première récolte',
+    bouton: 'Première récolte',
+    normal: 'La culture se développe vers la maturité.',
+    controle: 'La récolte tarde : la météo fraîche ralentit beaucoup la croissance. Observe le signe de maturité indiqué plutôt que la date.'
+  }
+};
+
+if (typeof module !== 'undefined') module.exports = ETAPES;
+
+</script>
+<script>
+/*
+ * FICHES CULTURES — V1 (15 cultures)
+ * ----------------------------------
+ * Données horticoles séparées du code d'interface. Sources et limites :
+ * voir data/REFERENCES.md. Toutes les valeurs sont des fourchettes indicatives
+ * pour un jardin amateur et restent À VALIDER sur le terrain.
+ *
+ * Conventions :
+ *  - Dates « MM-JJ » exprimées pour la zone climatique de référence « tempéré »
+ *    (Bassin parisien / Centre). Elles sont décalées automatiquement selon la zone
+ *    (data/climats.js).
+ *  - demarrage.<geste>.fenetres : périodes favorables ; `top` = sous-périodes
+ *    particulièrement favorables. Gestes : semis_abri, semis_place, plantation.
+ *  - parcours.<mode> : suite d'étapes après le démarrage. Modes : semis_place
+ *    (semé dehors), semis_abri (semé à l'abri puis mis en terre), plant (plant
+ *    acheté ou bulbe/caïeu mis en terre). `j:[min,max]` = délai en jours depuis
+ *    l'étape précédente. `calendaire` = l'étape ne peut pas survenir avant cette
+ *    période (ex. récolte de l'ail en été quelle que soit la date de plantation).
+ *  - espacement en cm : `plant` = entre deux plants sur le rang, `rang` = entre rangs.
+ *  - froid.gelTolere : température minimale (°C) supportée par les jeunes plants.
+ *    froid.nuitMin : en dessous, un geste dehors est déconseillé (attendre).
+ *    froid.nuitIdeale : au-dessus, conditions favorables.
+ *  - chaleur.semisMax : au-delà (max diurne), la levée devient difficile.
+ *  - varietes[].facteur : précocité relative (0,85 = environ 15 % plus rapide).
+ */
+var CULTURES = [
+  {
+    id: 'tomate',
+    nom: 'Tomate',
+    emoji: '🍅',
+    famille: 'Solanacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 40 },
+    espacement: { plant: 50, rang: 70 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 2, nuitMin: 8, nuitIdeale: 12 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '02-20', au: '04-15', top: [['03-10', '04-01']] }],
+        comment: 'Semer sous abri : en godets, à l’intérieur au chaud (20-25 °C) et très près d’une fenêtre.'
+      },
+      plantation: {
+        fenetres: [{ du: '05-10', au: '06-20', top: [['05-15', '06-05']] }],
+        comment: 'Mettre un plant en terre : enterrer la tige jusqu’aux premières feuilles, installer un tuteur.'
+      }
+    },
+    parcours: {
+      semis_abri: [
+        { etape: 'levee', j: [6, 12] },
+        { etape: 'plantation', j: [40, 60], calendaire: { du: '05-10', au: '06-05' } },
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [10, 25] },
+        { etape: 'fruits', j: [7, 14] },
+        { etape: 'recolte', j: [30, 45] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [10, 25] },
+        { etape: 'fruits', j: [7, 14] },
+        { etape: 'recolte', j: [30, 45] }
+      ]
+    },
+    etapes: {
+      levee: { controle: 'Sous 15 °C la tomate lève très mal. Mets les godets dans la pièce la plus chaude ; au-delà de 3 semaines sans rien, ressème.' },
+      recolte: { normal: 'Les fruits grossissent, restent verts plusieurs semaines puis changent de couleur à partir de la base.' }
+    },
+    gestes: [
+      { apres: 'plantation', j: [0, 5], titre: 'Tuteurer', consigne: 'Plante un tuteur solide (1,5 m) et attache la tige sans serrer, en huit.' },
+      { apres: 'reprise', j: [0, 21], titre: 'Pailler', consigne: 'Pose 5 cm de paille ou tonte sèche au pied : la terre reste fraîche et tu arroses moins.' },
+      { apres: 'reprise', j: [7, 90], titre: 'Supprimer les gourmands', consigne: 'Pince à la main les pousses qui naissent entre la tige et une feuille, quand elles font 2-3 cm.' },
+      { apres: 'fruits', j: [0, 60], titre: 'Arroser au pied', consigne: 'Arrose régulièrement au pied, jamais sur le feuillage (risque de mildiou).' }
+    ],
+    arrosage: { besoin: 'eleve', consigne: 'Arrosage régulier au pied, sans mouiller les feuilles. L’irrégularité provoque fruits fendus et « cul noir ».' },
+    recolte: {
+      multiple: true,
+      signe: 'Fruit bien coloré sur toute sa surface, qui cède légèrement sous le doigt et se détache facilement.',
+      duree: 'jusqu’aux premières fraîcheurs d’automne'
+    },
+    varietes: [
+      { id: 'marmande', nom: 'Marmande', facteur: 0.9, note: 'assez précoce, fiable' },
+      { id: 'saint-pierre', nom: 'Saint-Pierre', facteur: 1.0, note: 'mi-saison' },
+      { id: 'coeur-de-boeuf', nom: 'Cœur de bœuf', facteur: 1.15, note: 'tardive, gros fruits' }
+    ],
+    ensuite: ['mache', 'epinard', 'ail', 'fraise']
+  },
+
+  {
+    id: 'tomate-cerise',
+    nom: 'Tomate cerise',
+    emoji: '🍒',
+    famille: 'Solanacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 30 },
+    espacement: { plant: 50, rang: 60 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 2, nuitMin: 8, nuitIdeale: 12 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '02-20', au: '04-15', top: [['03-10', '04-01']] }],
+        comment: 'Semer sous abri : en godets, au chaud (20-25 °C) près d’une fenêtre.'
+      },
+      plantation: {
+        fenetres: [{ du: '05-10', au: '06-20', top: [['05-15', '06-05']] }],
+        comment: 'Mettre un plant en terre : enterrer la tige jusqu’aux premières feuilles, avec un tuteur.'
+      }
+    },
+    parcours: {
+      semis_abri: [
+        { etape: 'levee', j: [6, 12] },
+        { etape: 'plantation', j: [40, 60], calendaire: { du: '05-10', au: '06-05' } },
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [8, 20] },
+        { etape: 'fruits', j: [7, 12] },
+        { etape: 'recolte', j: [25, 35] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [8, 20] },
+        { etape: 'fruits', j: [7, 12] },
+        { etape: 'recolte', j: [25, 35] }
+      ]
+    },
+    etapes: {},
+    gestes: [
+      { apres: 'plantation', j: [0, 5], titre: 'Tuteurer', consigne: 'Installe un tuteur ou une ficelle : la tomate cerise monte vite.' },
+      { apres: 'reprise', j: [0, 21], titre: 'Pailler', consigne: 'Paille le pied pour garder la fraîcheur.' },
+      { apres: 'reprise', j: [7, 90], titre: 'Supprimer les gourmands', consigne: 'Pince les gourmands sous la première grappe de fleurs ; au-dessus, tu peux en laisser quelques-uns.' }
+    ],
+    arrosage: { besoin: 'eleve', consigne: 'Arrosage régulier au pied ; en bac, vérifier tous les jours en été.' },
+    recolte: {
+      multiple: true,
+      signe: 'Grappes bien colorées, fruits brillants qui se détachent tout seuls entre les doigts.',
+      duree: 'jusqu’à l’automne'
+    },
+    varietes: [
+      { id: 'cerise-rouge', nom: 'Cerise rouge', facteur: 1.0 },
+      { id: 'sweet-100', nom: 'Sweet 100 (type)', facteur: 0.9, note: 'très productive' },
+      { id: 'black-cherry', nom: 'Black Cherry', facteur: 1.05 }
+    ],
+    ensuite: ['mache', 'epinard', 'ail']
+  },
+
+  {
+    id: 'courgette',
+    nom: 'Courgette',
+    emoji: '🥒',
+    famille: 'Cucurbitacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 40 },
+    espacement: { plant: 80, rang: 100 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 2, nuitMin: 8, nuitIdeale: 12 },
+    chaleur: {},
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '04-01', au: '05-10', top: [['04-15', '05-01']] }],
+        comment: 'Semer sous abri : 2 graines par godet de 8-10 cm, au chaud ; garder la plus belle.'
+      },
+      semis_place: {
+        fenetres: [{ du: '05-15', au: '06-30', top: [['05-20', '06-10']] }],
+        comment: 'Semer en place : 2-3 graines par trou, à 2 cm de profondeur, dans une terre réchauffée.'
+      },
+      plantation: {
+        fenetres: [{ du: '05-10', au: '06-30', top: [['05-15', '06-10']] }],
+        comment: 'Mettre un plant en terre : dans un trou enrichi de compost, sans abîmer la motte.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [5, 10] },
+        { etape: 'feuilles', j: [7, 12] },
+        { etape: 'floraison', j: [25, 35] },
+        { etape: 'fruits', j: [4, 8] },
+        { etape: 'recolte', j: [4, 8] }
+      ],
+      semis_abri: [
+        { etape: 'levee', j: [5, 10] },
+        { etape: 'plantation', j: [18, 30], calendaire: { du: '05-10', au: '06-10' } },
+        { etape: 'reprise', j: [4, 8] },
+        { etape: 'floraison', j: [20, 30] },
+        { etape: 'fruits', j: [4, 8] },
+        { etape: 'recolte', j: [4, 8] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [4, 8] },
+        { etape: 'floraison', j: [20, 30] },
+        { etape: 'fruits', j: [4, 8] },
+        { etape: 'recolte', j: [4, 8] }
+      ]
+    },
+    etapes: {
+      fruits: { normal: 'Les premières fleurs sont souvent toutes mâles (sans petite courgette à la base) : elles tombent, c’est normal.' }
+    },
+    gestes: [
+      { apres: 'reprise', j: [0, 21], titre: 'Pailler', consigne: 'Paille généreusement le pied : la courgette aime une terre fraîche.' },
+      { apres: 'fruits', j: [0, 60], titre: 'Cueillir jeune', consigne: 'Cueille tous les 2-3 jours à 15-20 cm : la plante produit davantage.' }
+    ],
+    arrosage: { besoin: 'eleve', consigne: 'Gros besoin d’eau : arrose copieusement au pied, sans mouiller les feuilles (oïdium).' },
+    recolte: {
+      multiple: true,
+      signe: 'Courgette de 15 à 20 cm, peau brillante, fleur encore attachée ou à peine fanée.',
+      duree: 'pendant 2 à 3 mois'
+    },
+    varietes: [
+      { id: 'verte-maraicher', nom: 'Verte des maraîchers', facteur: 1.0 },
+      { id: 'ronde-nice', nom: 'Ronde de Nice', facteur: 0.95 },
+      { id: 'gold-rush', nom: 'Gold Rush (jaune)', facteur: 1.0 }
+    ],
+    ensuite: ['mache', 'epinard', 'ail', 'laitue']
+  },
+
+  {
+    id: 'concombre',
+    nom: 'Concombre',
+    emoji: '🥒',
+    famille: 'Cucurbitacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 30 },
+    espacement: { plant: 50, rang: 100 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 3, nuitMin: 10, nuitIdeale: 14 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '04-01', au: '05-10', top: [['04-15', '05-05']] }],
+        comment: 'Semer sous abri : 2 graines par godet, au chaud (> 20 °C).'
+      },
+      semis_place: {
+        fenetres: [{ du: '05-20', au: '06-30', top: [['05-25', '06-15']] }],
+        comment: 'Semer en place : 3 graines par poquet, dans une terre bien réchauffée.'
+      },
+      plantation: {
+        fenetres: [{ du: '05-15', au: '06-30', top: [['05-20', '06-15']] }],
+        comment: 'Mettre un plant en terre : au pied d’un treillage ou d’un filet pour qu’il grimpe.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [5, 10] },
+        { etape: 'feuilles', j: [7, 12] },
+        { etape: 'floraison', j: [25, 35] },
+        { etape: 'fruits', j: [5, 10] },
+        { etape: 'recolte', j: [8, 14] }
+      ],
+      semis_abri: [
+        { etape: 'levee', j: [5, 10] },
+        { etape: 'plantation', j: [18, 30], calendaire: { du: '05-15', au: '06-15' } },
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [20, 30] },
+        { etape: 'fruits', j: [5, 10] },
+        { etape: 'recolte', j: [8, 14] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'floraison', j: [20, 30] },
+        { etape: 'fruits', j: [5, 10] },
+        { etape: 'recolte', j: [8, 14] }
+      ]
+    },
+    etapes: {},
+    gestes: [
+      { apres: 'reprise', j: [0, 30], titre: 'Palisser', consigne: 'Guide les tiges sur un filet ou un treillage : les fruits restent propres et droits.' },
+      { apres: 'reprise', j: [0, 21], titre: 'Pailler', consigne: 'Paille le pied pour garder la terre fraîche.' }
+    ],
+    arrosage: { besoin: 'eleve', consigne: 'Arrosage régulier à l’eau non glacée, au pied. Le manque d’eau rend les fruits amers.' },
+    recolte: {
+      multiple: true,
+      signe: 'Fruit ferme, vert uniforme, de 15 à 25 cm selon la variété, avant qu’il ne jaunisse.',
+      duree: 'pendant 6 à 8 semaines'
+    },
+    varietes: [
+      { id: 'marketmore', nom: 'Marketmore', facteur: 1.0 },
+      { id: 'vert-long-maraicher', nom: 'Vert long maraîcher', facteur: 1.0 },
+      { id: 'cornichon-fin-meaux', nom: 'Cornichon fin de Meaux', facteur: 0.9 }
+    ],
+    ensuite: ['mache', 'epinard', 'ail']
+  },
+
+  {
+    id: 'poivron',
+    nom: 'Poivron',
+    emoji: '🫑',
+    famille: 'Solanacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 30 },
+    espacement: { plant: 40, rang: 50 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 4, nuitMin: 10, nuitIdeale: 14 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '02-15', au: '03-31', top: [['02-25', '03-20']] }],
+        comment: 'Semer sous abri : tôt, en godets, au chaud (22-25 °C), levée lente.'
+      },
+      plantation: {
+        fenetres: [{ du: '05-15', au: '06-15', top: [['05-20', '06-05']] }],
+        comment: 'Mettre un plant en terre : au soleil le plus chaud du jardin, à l’abri du vent.'
+      }
+    },
+    parcours: {
+      semis_abri: [
+        { etape: 'levee', j: [8, 20] },
+        { etape: 'plantation', j: [55, 75], calendaire: { du: '05-15', au: '06-05' } },
+        { etape: 'reprise', j: [7, 14] },
+        { etape: 'floraison', j: [20, 35] },
+        { etape: 'fruits', j: [7, 14] },
+        { etape: 'recolte', j: [30, 50] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [7, 14] },
+        { etape: 'floraison', j: [20, 35] },
+        { etape: 'fruits', j: [7, 14] },
+        { etape: 'recolte', j: [30, 50] }
+      ]
+    },
+    etapes: {
+      levee: { controle: 'Le poivron peut mettre 3 semaines à lever, surtout sous 20 °C. Au-delà de 4 semaines sans rien, ressème au chaud.' }
+    },
+    gestes: [
+      { apres: 'plantation', j: [0, 7], titre: 'Tuteurer', consigne: 'Un petit tuteur évite que la plante chargée de fruits ne casse.' },
+      { apres: 'reprise', j: [0, 21], titre: 'Pailler', consigne: 'Paille une fois la terre bien réchauffée.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Arrosage régulier, modéré : le poivron n’aime ni la sécheresse ni l’excès d’eau.' },
+    recolte: {
+      multiple: true,
+      signe: 'Fruit ferme et brillant à sa taille finale. Vert, il est mangeable ; laissé sur pied, il rougit et devient plus sucré.',
+      duree: 'jusqu’à l’automne'
+    },
+    varietes: [
+      { id: 'doux-espagne', nom: 'Doux d’Espagne', facteur: 1.0 },
+      { id: 'corno-di-toro', nom: 'Corno di Toro', facteur: 1.05 },
+      { id: 'petit-marseillais', nom: 'Petit Marseillais', facteur: 0.9, note: 'précoce, adapté aux bacs' }
+    ],
+    ensuite: ['mache', 'ail', 'epinard']
+  },
+
+  {
+    id: 'laitue',
+    nom: 'Laitue',
+    emoji: '🥬',
+    famille: 'Astéracées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 15 },
+    espacement: { plant: 25, rang: 30 },
+    unite: 'salades',
+    froid: { sensible: false, gelTolere: -3, nuitMin: 0, nuitIdeale: 5 },
+    chaleur: { semisMax: 25 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '02-01', au: '04-15', top: [['03-01', '03-31']] }],
+        comment: 'Semer sous abri : en caissette ou mini-mottes, au frais lumineux (15-18 °C).'
+      },
+      semis_place: {
+        fenetres: [
+          { du: '03-15', au: '08-31', top: [['04-01', '05-15']] },
+          { du: '09-01', au: '09-30' }
+        ],
+        comment: 'Semer en place : en ligne, graines à peine recouvertes, puis éclaircir.'
+      },
+      plantation: {
+        fenetres: [
+          { du: '03-20', au: '06-30', top: [['04-01', '05-31']] },
+          { du: '08-15', au: '10-15', top: [['09-01', '09-30']] }
+        ],
+        comment: 'Mettre un plant en terre : sans enterrer le collet (la base des feuilles).'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [4, 10] },
+        { etape: 'feuilles', j: [10, 18] },
+        { etape: 'recolte', j: [30, 45] }
+      ],
+      semis_abri: [
+        { etape: 'levee', j: [4, 10] },
+        { etape: 'plantation', j: [20, 35] },
+        { etape: 'reprise', j: [4, 8] },
+        { etape: 'recolte', j: [30, 45] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [4, 8] },
+        { etape: 'recolte', j: [30, 45] }
+      ]
+    },
+    etapes: {
+      levee: { controle: 'Au-delà de 25 °C, la laitue lève mal. Ressème le soir, à l’ombre, sur une terre bien humidifiée.' }
+    },
+    gestes: [
+      { apres: 'feuilles', j: [0, 10], titre: 'Éclaircir', consigne: 'Ne garde qu’une salade tous les 25 cm ; repique les autres ailleurs si tu veux.' },
+      { apres: 'reprise', j: [0, 30], titre: 'Surveiller les limaces', consigne: 'Inspecte le soir après la pluie ; quelques planches posées au sol servent de pièges.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Arrosage léger et fréquent, le matin, en évitant de mouiller le cœur le soir.' },
+    recolte: {
+      multiple: false,
+      signe: 'Pomme bien formée et ferme au toucher. Récolte avant que le cœur s’allonge (montée en graines).'
+    },
+    varietes: [
+      { id: 'batavia', nom: 'Batavia', facteur: 1.0 },
+      { id: 'feuille-chene', nom: 'Feuille de chêne', facteur: 0.9 },
+      { id: 'merveille-4-saisons', nom: 'Merveille des 4 saisons', facteur: 1.05 }
+    ],
+    ensuite: ['radis', 'haricot-nain', 'mache', 'carotte']
+  },
+
+  {
+    id: 'mache',
+    nom: 'Mâche',
+    emoji: '🌿',
+    famille: 'Valérianacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 10 },
+    espacement: { plant: 8, rang: 10 },
+    unite: 'rosettes',
+    froid: { sensible: false, gelTolere: -10, nuitMin: -5, nuitIdeale: 0 },
+    chaleur: { semisMax: 25 },
+    demarrage: {
+      semis_place: {
+        fenetres: [{ du: '07-25', au: '10-15', top: [['08-15', '09-20']] }],
+        comment: 'Semer en place : à la volée ou en ligne sur une terre tassée, graines juste recouvertes.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [7, 15] },
+        { etape: 'feuilles', j: [15, 25] },
+        { etape: 'recolte', j: [30, 50] }
+      ]
+    },
+    etapes: {
+      levee: { controle: 'La mâche lève lentement et mal par temps chaud. Garde la surface humide (planche ou toile de jute posée dessus jusqu’à la levée).' }
+    },
+    gestes: [
+      { apres: 'levee', j: [0, 15], titre: 'Garder humide', consigne: 'Arrose finement en pluie : les jeunes plantules sèchent vite en surface.' }
+    ],
+    arrosage: { besoin: 'faible', consigne: 'Peu d’eau une fois installée ; l’automne suffit souvent.' },
+    recolte: {
+      multiple: false,
+      signe: 'Rosettes de 4 à 6 feuilles bien vertes. Coupe la rosette entière au ras du sol, avant la floraison.'
+    },
+    varietes: [
+      { id: 'verte-cambrai', nom: 'Verte de Cambrai', facteur: 1.05, note: 'très rustique' },
+      { id: 'coquille-louviers', nom: 'Coquille de Louviers', facteur: 1.0 }
+    ],
+    ensuite: ['tomate', 'courgette', 'haricot-nain', 'radis']
+  },
+
+  {
+    id: 'epinard',
+    nom: 'Épinard',
+    emoji: '🥬',
+    famille: 'Amaranthacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 20 },
+    espacement: { plant: 10, rang: 25 },
+    unite: 'pieds',
+    froid: { sensible: false, gelTolere: -8, nuitMin: -3, nuitIdeale: 2 },
+    chaleur: { semisMax: 24 },
+    demarrage: {
+      semis_place: {
+        fenetres: [
+          { du: '02-15', au: '04-15', top: [['03-01', '03-31']] },
+          { du: '08-15', au: '10-15', top: [['09-01', '09-30']] }
+        ],
+        comment: 'Semer en place : en ligne à 2 cm de profondeur ; graines trempées 12 h la veille.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [6, 14] },
+        { etape: 'feuilles', j: [12, 20] },
+        { etape: 'recolte', j: [25, 35] }
+      ]
+    },
+    etapes: {},
+    gestes: [
+      { apres: 'feuilles', j: [0, 10], titre: 'Éclaircir', consigne: 'Laisse 10 cm entre les pieds.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Terre fraîche en permanence ; le manque d’eau le fait monter en graines.' },
+    recolte: {
+      multiple: true,
+      signe: 'Feuilles de 8-10 cm. Cueille les plus grandes à l’extérieur et laisse le cœur repousser.',
+      duree: 'pendant 4 à 8 semaines'
+    },
+    varietes: [
+      { id: 'geant-hiver', nom: 'Géant d’hiver', facteur: 1.1, note: 'semis d’automne' },
+      { id: 'monstrueux-viroflay', nom: 'Monstrueux de Viroflay', facteur: 1.0 }
+    ],
+    ensuite: ['tomate', 'courgette', 'haricot-nain', 'radis']
+  },
+
+  {
+    id: 'radis',
+    nom: 'Radis',
+    emoji: '🔴',
+    famille: 'Brassicacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 15 },
+    espacement: { plant: 3, rang: 15 },
+    unite: 'radis',
+    froid: { sensible: false, gelTolere: -4, nuitMin: -2, nuitIdeale: 4 },
+    chaleur: { semisMax: 26 },
+    demarrage: {
+      semis_place: {
+        fenetres: [
+          { du: '03-01', au: '05-31', top: [['03-20', '05-10']] },
+          { du: '08-20', au: '10-05', top: [['09-01', '09-20']] }
+        ],
+        comment: 'Semer en place : en ligne, à 1 cm de profondeur, une graine tous les 2-3 cm.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [3, 7] },
+        { etape: 'feuilles', j: [4, 8] },
+        { etape: 'recolte', j: [12, 20] }
+      ]
+    },
+    etapes: {
+      levee: { normal: 'Le radis lève vite : de petites feuilles en forme de cœur sortent en 3 à 7 jours.' },
+      recolte: { normal: 'Les feuilles grandissent et la racine commence à rosir au niveau du collet.' }
+    },
+    gestes: [
+      { apres: 'levee', j: [4, 12], titre: 'Éclaircir', consigne: 'Laisse 3 cm entre deux radis en arrachant les plus petits : sinon ils ne forment pas de boule.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Terre toujours fraîche : un radis qui manque d’eau devient creux et piquant.' },
+    recolte: {
+      multiple: false,
+      signe: 'Racine de 2 à 3 cm qui affleure au ras du sol. Récolte sans tarder : trop attendu, le radis devient creux.'
+    },
+    varietes: [
+      { id: '18-jours', nom: 'Radis de 18 jours', facteur: 0.85, note: 'très rapide' },
+      { id: 'flamboyant', nom: 'Flamboyant', facteur: 1.0 },
+      { id: 'rond-ecarlate', nom: 'Rond écarlate', facteur: 1.0 }
+    ],
+    ensuite: ['laitue', 'carotte', 'haricot-nain', 'radis']
+  },
+
+  {
+    id: 'carotte',
+    nom: 'Carotte',
+    emoji: '🥕',
+    famille: 'Apiacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 30 },
+    espacement: { plant: 4, rang: 20 },
+    unite: 'carottes',
+    froid: { sensible: false, gelTolere: -4, nuitMin: 0, nuitIdeale: 6 },
+    chaleur: { semisMax: 30 },
+    demarrage: {
+      semis_place: {
+        fenetres: [{ du: '03-10', au: '07-15', top: [['04-01', '05-15']] }],
+        comment: 'Semer en place : en ligne peu profonde (1 cm) dans une terre fine, sans cailloux.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [10, 21] },
+        { etape: 'feuilles', j: [12, 20] },
+        { etape: 'recolte', j: [50, 75] }
+      ]
+    },
+    etapes: {
+      levee: {
+        normal: 'La carotte est lente : 2 à 3 semaines sans rien voir, c’est normal. Garde la ligne humide en surface.',
+        controle: 'Au-delà de 4 semaines, gratte la ligne : si les graines n’ont pas germé (croûte, sécheresse), ressème en couvrant d’un peu de terreau.'
+      }
+    },
+    gestes: [
+      { apres: 'feuilles', j: [5, 20], titre: 'Éclaircir', consigne: 'Laisse 4 cm entre deux carottes, de préférence le soir et en arrosant après (la mouche de la carotte est attirée par l’odeur).' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Régulier jusqu’à la levée et pendant la croissance ; à-coups d’arrosage = carottes fendues.' },
+    recolte: {
+      multiple: false,
+      signe: 'Collet orangé de 2 cm de diamètre visible au ras du sol. Tire une carotte « test » avant de récolter le rang.'
+    },
+    varietes: [
+      { id: 'nantaise', nom: 'Nantaise améliorée', facteur: 1.0 },
+      { id: 'marche-paris', nom: 'Grelot / Marché de Paris (ronde)', facteur: 0.8, note: 'idéale en bac peu profond' },
+      { id: 'chantenay', nom: 'Chantenay', facteur: 1.1 }
+    ],
+    ensuite: ['mache', 'epinard', 'ail', 'laitue']
+  },
+
+  {
+    id: 'betterave',
+    nom: 'Betterave',
+    emoji: '🟣',
+    famille: 'Amaranthacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 25 },
+    espacement: { plant: 10, rang: 30 },
+    unite: 'betteraves',
+    froid: { sensible: false, gelTolere: -2, nuitMin: 3, nuitIdeale: 8 },
+    demarrage: {
+      semis_abri: {
+        fenetres: [{ du: '03-01', au: '04-15', top: [['03-15', '04-05']] }],
+        comment: 'Semer sous abri : une « graine » (glomérule) par mini-motte, elle donne plusieurs plantules.'
+      },
+      semis_place: {
+        fenetres: [{ du: '04-15', au: '07-10', top: [['05-01', '06-15']] }],
+        comment: 'Semer en place : graines trempées une nuit, à 2 cm de profondeur, tous les 10 cm.'
+      },
+      plantation: {
+        fenetres: [{ du: '04-20', au: '06-15', top: [['05-01', '05-31']] }],
+        comment: 'Mettre un plant en terre : garder 1 ou 2 plantules par motte.'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [7, 15] },
+        { etape: 'feuilles', j: [10, 20] },
+        { etape: 'recolte', j: [50, 70] }
+      ],
+      semis_abri: [
+        { etape: 'levee', j: [7, 15] },
+        { etape: 'plantation', j: [20, 35], calendaire: { du: '04-20', au: '05-31' } },
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'recolte', j: [50, 70] }
+      ],
+      plant: [
+        { etape: 'reprise', j: [5, 10] },
+        { etape: 'recolte', j: [50, 70] }
+      ]
+    },
+    etapes: {
+      feuilles: { normal: 'Chaque graine donne souvent 2 à 4 plantules collées : c’est normal, on éclaircit ensuite.' }
+    },
+    gestes: [
+      { apres: 'feuilles', j: [0, 15], titre: 'Éclaircir', consigne: 'Ne garde qu’une plantule tous les 10 cm (les jeunes feuilles se mangent en salade).' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Arrosage régulier ; une sécheresse rend la racine fibreuse.' },
+    recolte: {
+      multiple: false,
+      signe: 'Racine de 5 à 8 cm de diamètre (une balle de tennis). Plus grosse, elle devient fibreuse.'
+    },
+    varietes: [
+      { id: 'detroit', nom: 'Detroit (ronde rouge)', facteur: 0.9 },
+      { id: 'chioggia', nom: 'Chioggia', facteur: 0.95 },
+      { id: 'crapaudine', nom: 'Crapaudine', facteur: 1.3, note: 'longue, tardive' }
+    ],
+    ensuite: ['mache', 'epinard', 'ail', 'radis']
+  },
+
+  {
+    id: 'ail',
+    nom: 'Ail',
+    emoji: '🧄',
+    famille: 'Amaryllidacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 20 },
+    espacement: { plant: 10, rang: 25 },
+    unite: 'gousses',
+    froid: { sensible: false, gelTolere: -15, nuitMin: -10, nuitIdeale: -2 },
+    demarrage: {
+      plantation: {
+        fenetres: [
+          { du: '10-15', au: '12-15', top: [['10-25', '11-25']] },
+          { du: '02-01', au: '03-31', top: [['02-15', '03-15']] }
+        ],
+        comment: 'Planter des caïeux : gousses pointe en haut, à 3 cm de profondeur. Ail blanc/violet à l’automne, ail rose au printemps.',
+        libelle: 'Planter des caïeux'
+      }
+    },
+    parcours: {
+      plant: [
+        { etape: 'levee', j: [15, 35] },
+        { etape: 'recolte', j: [120, 160], calendaire: { du: '06-20', au: '07-31' } }
+      ]
+    },
+    etapes: {
+      levee: {
+        normal: 'Rien ne se voit pendant 2 à 5 semaines : le caïeu fait d’abord ses racines. Puis une pointe verte sort.',
+        controle: 'Gratte autour d’une gousse : si elle est ferme avec des racines, patiente ; si elle est molle ou a disparu (pourriture, oiseaux), replante.'
+      },
+      recolte: { normal: 'Les feuilles poussent tout l’hiver et le printemps. Le bulbe se forme à partir de mai-juin.' }
+    },
+    gestes: [
+      { apres: 'levee', j: [30, 120], titre: 'Désherber', consigne: 'L’ail supporte mal la concurrence : retire les herbes à la main, sans abîmer les bulbes.' },
+      { apres: 'recolte', j: [-21, 0], titre: 'Arrêter l’arrosage', consigne: 'Plus d’arrosage les 3 dernières semaines : le bulbe se conserve mieux.' }
+    ],
+    arrosage: { besoin: 'faible', consigne: 'Peu d’eau : seulement en cas de printemps très sec. Jamais d’arrosage avant la récolte.', stopAvantRecolte: 21 },
+    recolte: {
+      multiple: false,
+      signe: 'Les deux tiers des feuilles ont jauni et se couchent. Arrache par temps sec et laisse sécher 2-3 jours au soleil.'
+    },
+    varietes: [
+      { id: 'blanc-automne', nom: 'Ail blanc (automne)', facteur: 1.0 },
+      { id: 'violet', nom: 'Ail violet (automne)', facteur: 1.0 },
+      { id: 'rose-printemps', nom: 'Ail rose (printemps)', facteur: 0.9 }
+    ],
+    ensuite: ['radis', 'laitue', 'mache', 'epinard']
+  },
+
+  {
+    id: 'oignon',
+    nom: 'Oignon',
+    emoji: '🧅',
+    famille: 'Amaryllidacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 15 },
+    espacement: { plant: 10, rang: 25 },
+    unite: 'oignons',
+    froid: { sensible: false, gelTolere: -6, nuitMin: -3, nuitIdeale: 3 },
+    demarrage: {
+      semis_place: {
+        fenetres: [
+          { du: '02-20', au: '04-10', top: [['03-01', '03-31']] },
+          { du: '08-15', au: '09-15' }
+        ],
+        comment: 'Semer en place : en ligne, à 1 cm, puis éclaircir à 10 cm. (Août-septembre : oignon blanc.)'
+      },
+      plantation: {
+        fenetres: [{ du: '02-20', au: '04-20', top: [['03-01', '04-05']] }],
+        comment: 'Planter des bulbilles : enfoncées aux 2/3, pointe au ras de la terre.',
+        libelle: 'Planter des bulbilles'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [10, 20] },
+        { etape: 'feuilles', j: [15, 25] },
+        { etape: 'recolte', j: [100, 130], calendaire: { du: '07-01', au: '08-31' } }
+      ],
+      plant: [
+        { etape: 'levee', j: [7, 15] },
+        { etape: 'recolte', j: [100, 130], calendaire: { du: '07-01', au: '08-15' } }
+      ]
+    },
+    etapes: {
+      levee: { normal: 'Une fine tige verte, courbée comme un crochet au début, sort de terre.' }
+    },
+    gestes: [
+      { apres: 'levee', j: [0, 30], titre: 'Remettre en place', consigne: 'Les oiseaux arrachent parfois les bulbilles : renfonce celles qui sont sorties.' },
+      { apres: 'recolte', j: [-21, 0], titre: 'Arrêter l’arrosage', consigne: 'Plus d’arrosage à l’approche de la récolte pour une bonne conservation.' }
+    ],
+    arrosage: { besoin: 'faible', consigne: 'Arrosage modéré au printemps, puis plus du tout à l’approche de la récolte.', stopAvantRecolte: 21 },
+    recolte: {
+      multiple: false,
+      signe: 'Les feuilles jaunissent et se couchent d’elles-mêmes. Arrache et laisse sécher au soleil 2-3 jours.'
+    },
+    varietes: [
+      { id: 'jaune-paille', nom: 'Jaune paille des Vertus', facteur: 1.0 },
+      { id: 'rouge-florence', nom: 'Rouge de Florence', facteur: 1.0 },
+      { id: 'stuttgart', nom: 'Stuttgart (bulbilles)', facteur: 0.95 }
+    ],
+    ensuite: ['mache', 'epinard', 'radis', 'laitue']
+  },
+
+  {
+    id: 'haricot-nain',
+    nom: 'Haricot nain',
+    emoji: '🫛',
+    famille: 'Fabacées',
+    soleil: ['plein'],
+    bac: { possible: true, profondeurMin: 20 },
+    espacement: { plant: 8, rang: 40 },
+    unite: 'pieds',
+    froid: { sensible: true, gelTolere: 2, nuitMin: 8, nuitIdeale: 12 },
+    demarrage: {
+      semis_place: {
+        fenetres: [{ du: '05-10', au: '07-15', top: [['05-20', '06-30']] }],
+        comment: 'Semer en place : uniquement dehors, en poquets de 4-5 graines ou en ligne, à 3 cm, dans une terre réchauffée (> 12 °C).'
+      }
+    },
+    parcours: {
+      semis_place: [
+        { etape: 'levee', j: [6, 12] },
+        { etape: 'floraison', j: [25, 35] },
+        { etape: 'fruits', j: [7, 12] },
+        { etape: 'recolte', j: [7, 12] }
+      ]
+    },
+    etapes: {
+      levee: {
+        normal: 'La graine sort de terre en crosse, comme un petit crochet, puis déploie deux feuilles épaisses.',
+        controle: 'Les graines pourrissent dans une terre froide et détrempée. Gratte : si elles sont molles, ressème quand les nuits dépassent 10 °C.'
+      }
+    },
+    gestes: [
+      { apres: 'levee', j: [10, 25], titre: 'Butter', consigne: 'Ramène un peu de terre au pied des tiges quand elles font 10-15 cm : elles tiennent mieux.' },
+      { apres: 'fruits', j: [0, 30], titre: 'Cueillir souvent', consigne: 'Cueille tous les 2-3 jours : plus tu cueilles, plus il en produit.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Peu avant la floraison, puis régulièrement au pied pendant la production.' },
+    recolte: {
+      multiple: true,
+      signe: 'Gousses de la grosseur d’un crayon, qui cassent net, avant que les grains ne gonflent.',
+      duree: 'pendant 3 à 4 semaines'
+    },
+    varietes: [
+      { id: 'contender', nom: 'Contender', facteur: 0.95 },
+      { id: 'delinel', nom: 'Delinel', facteur: 1.0 },
+      { id: 'beurre-mont-dor', nom: 'Beurre Mont d’Or', facteur: 1.0 }
+    ],
+    ensuite: ['mache', 'epinard', 'laitue', 'radis']
+  },
+
+  {
+    id: 'fraise',
+    nom: 'Fraise',
+    emoji: '🍓',
+    famille: 'Rosacées',
+    soleil: ['plein', 'mi-ombre'],
+    bac: { possible: true, profondeurMin: 20 },
+    espacement: { plant: 30, rang: 50 },
+    unite: 'plants',
+    froid: { sensible: false, gelTolere: -10, nuitMin: -5, nuitIdeale: 2 },
+    demarrage: {
+      plantation: {
+        fenetres: [
+          { du: '08-15', au: '10-31', top: [['08-25', '09-30']] },
+          { du: '03-01', au: '04-30' }
+        ],
+        comment: 'Mettre un plant en terre : le cœur du fraisier juste au ras du sol, ni enterré ni déchaussé.'
+      }
+    },
+    parcours: {
+      plant: [
+        { etape: 'reprise', j: [10, 20] },
+        { etape: 'floraison', j: [20, 40], calendaire: { du: '04-10', au: '05-10' } },
+        { etape: 'fruits', j: [7, 14] },
+        { etape: 'recolte', j: [21, 30] }
+      ]
+    },
+    etapes: {
+      floraison: { normal: 'Après une plantation d’automne, le fraisier reste discret tout l’hiver : c’est normal, il fleurit au printemps.' }
+    },
+    gestes: [
+      { apres: 'reprise', j: [7, 60], titre: 'Couper les stolons', consigne: 'Coupe les longues tiges rampantes (stolons) pour que le plant garde sa force pour les fruits.' },
+      { apres: 'floraison', j: [0, 14], titre: 'Pailler', consigne: 'Glisse de la paille sous les feuilles : les fraises restent propres et pourrissent moins.' }
+    ],
+    arrosage: { besoin: 'moyen', consigne: 'Régulier pendant la floraison et la fructification, au pied, le matin.' },
+    recolte: {
+      multiple: true,
+      signe: 'Fraise rouge jusqu’au pédoncule et parfumée. Cueille-la avec sa queue, le matin.',
+      duree: 'pendant 3 à 6 semaines (plus longtemps pour les remontantes)'
+    },
+    varietes: [
+      { id: 'gariguette', nom: 'Gariguette', facteur: 0.95, note: 'précoce' },
+      { id: 'mara-des-bois', nom: 'Mara des bois', facteur: 1.0, note: 'remontante' },
+      { id: 'charlotte', nom: 'Charlotte', facteur: 1.0, note: 'remontante' }
+    ],
+    ensuite: ['ail', 'laitue', 'radis', 'epinard']
+  }
+];
+
+if (typeof module !== 'undefined') module.exports = CULTURES;
+
+</script>
+<script>
+/*
+ * Zone climatique par département (repli quand la recherche de commune en ligne
+ * n'est pas disponible). Approximatif : un département peut couvrir plusieurs
+ * climats (littoral / montagne). L'utilisateur peut toujours corriger.
+ */
+var DEPARTEMENTS = (function () {
+  var z = {
+    mediterraneen: ['04', '06', '11', '13', '20', '2A', '2B', '30', '34', '66', '83', '84'],
+    oceanique: ['14', '16', '17', '22', '24', '29', '32', '33', '35', '40', '44', '47', '49', '50', '53', '56', '64', '65', '79', '85', '86'],
+    continental: ['01', '08', '10', '21', '25', '38', '39', '42', '51', '52', '54', '55', '57', '67', '68', '69', '70', '71', '73', '74', '88', '90'],
+    montagne: ['05', '15', '48']
+  };
+  var table = {};
+  Object.keys(z).forEach(function (k) { z[k].forEach(function (d) { table[d] = k; }); });
+  return {
+    /** Code postal → { departement, zone } (zone « tempere » par défaut) */
+    depuisCodePostal: function (cp) {
+      cp = String(cp || '').trim();
+      if (!/^\d{5}$/.test(cp)) return null;
+      var d = cp.slice(0, 2);
+      if (d === '97' || d === '98') return null;
+      return { departement: d, zone: table[d] || 'tempere' };
+    }
+  };
+})();
+if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
+
+</script>
+<script>
+/*
+ * MOTEUR DE CONSEILS — logique pure, sans interface.
+ * Tout ce qui dépend du temps reçoit `maintenant` en paramètre (testable).
+ * Les règles chiffrées propres au moteur (seuils d'arrosage, marges) sont
+ * regroupées dans REGLES ci-dessous ; les données par culture sont dans
+ * data/cultures.js.
+ */
+(function (racine) {
+  var CULTURES = racine.CULTURES || (typeof require !== 'undefined' && require('../data/cultures.js'));
+  var ETAPES = racine.ETAPES || (typeof require !== 'undefined' && require('../data/etapes.js'));
+  var CLIMATS = racine.CLIMATS || (typeof require !== 'undefined' && require('../data/climats.js'));
+
+  var REGLES = {
+    margeConditionsJours: 14,      // avant/après une fenêtre : « possible sous conditions »
+    horizonMeteoJours: 5,          // nuits regardées pour un geste dehors
+    arrosage: {
+      intervalleBase: { bac: 2, pleine_terre: 4 },   // jours entre deux vérifications par temps doux
+      seuilPluie: { bac: 6, pleine_terre: 10 },       // mm de pluie tombée équivalents à un arrosage
+      pluieAnnonceeSignificative: 4,                  // mm dans les 24 h pour en parler
+      facteurStade: { semisNonLeve: 0.5, reprise: 0.6, fructificationGourmande: 0.75 },
+      facteurBesoin: { faible: 1.4, moyen: 1, eleve: 0.85 },
+      chaleur: [ // tmax (°C) -> facteur
+        { min: 32, f: 0.5 }, { min: 28, f: 0.7 }, { min: 24, f: 0.85 }, { min: 16, f: 1 }, { min: 10, f: 1.4 }, { min: -99, f: 2 }
+      ],
+      intervalleMin: 0.5,
+      intervalleMax: 7
+    },
+    approcheRecolteJours: 7
+  };
+
+  var JOUR = 86400000;
+  var NIVEAUX = ['attendre', 'possible sous conditions', 'favorable', 'très favorable'];
+  var GESTES = {
+    semis_abri: { id: 'semis_abri', nom: 'Semer sous abri', court: 'semer sous abri' },
+    semis_place: { id: 'semis_place', nom: 'Semer dehors', court: 'semer en place' },
+    plantation: { id: 'plantation', nom: 'Planter dehors', court: 'mettre un plant en terre' }
+  };
+  var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+  /* ---------- Dates ---------- */
+  function jourDe(d) { var x = new Date(d.getTime()); x.setHours(12, 0, 0, 0); return x; }
+  function lireDate(iso) {
+    if (iso instanceof Date) return jourDe(iso);
+    var p = String(iso).slice(0, 10).split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0, 0);
+  }
+  function isoDate(d) {
+    var m = d.getMonth() + 1, j = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (j < 10 ? '0' : '') + j;
+  }
+  function ajouterJours(d, n) { var x = new Date(d.getTime() + n * JOUR); return x; }
+  function ecartJours(a, b) { return Math.round((jourDe(b) - jourDe(a)) / JOUR); }
+  function dateMMJJ(annee, mmjj) { var p = mmjj.split('-'); return new Date(annee, +p[0] - 1, +p[1], 12); }
+  function formatDate(d) { return d.getDate() + ' ' + MOIS[d.getMonth()]; }
+  function formatJour(d) { return JOURS[d.getDay()] + ' ' + formatDate(d); }
+  function formatFenetre(a, b) {
+    if (ecartJours(a, b) <= 0) return 'vers le ' + formatDate(a);
+    if (a.getMonth() === b.getMonth()) return 'entre le ' + a.getDate() + ' et le ' + formatDate(b);
+    return 'entre le ' + formatDate(a) + ' et le ' + formatDate(b);
+  }
+  function quand(d, maintenant) {
+    var n = ecartJours(maintenant, d);
+    var h = d.getHours();
+    var moment = h < 12 ? 'matin' : (h < 18 ? 'après-midi' : 'soir');
+    if (n <= 0) return d <= maintenant ? 'maintenant' : 'aujourd’hui ' + (moment === 'matin' ? 'dans la matinée' : (moment === 'soir' ? 'en soirée' : 'dans l’après-midi'));
+    if (n === 1) return 'demain ' + moment;
+    if (n < 7) return JOURS[d.getDay()] + ' ' + moment;
+    return 'le ' + formatDate(d);
+  }
+
+  /* ---------- Cultures ---------- */
+  function culture(id) { for (var i = 0; i < CULTURES.length; i++) if (CULTURES[i].id === id) return CULTURES[i]; return null; }
+  function gestesDe(c) { return ['semis_abri', 'semis_place', 'plantation'].filter(function (g) { return !!c.demarrage[g]; }); }
+  function nomGeste(c, g) { return (g === 'plantation' && c.demarrage.plantation && c.demarrage.plantation.libelle) || GESTES[g].nom; }
+  /** Modes de démarrage applicables : semis_place, semis_abri (semer puis mettre en terre), plant */
+  function modesDe(c) {
+    var m = [];
+    if (c.parcours.semis_place) m.push('semis_place');
+    if (c.parcours.semis_abri) m.push('semis_abri');
+    if (c.parcours.plant) m.push('plant');
+    return m;
+  }
+  var NOMS_MODES = { semis_place: 'Semé dehors (en place)', semis_abri: 'Semé sous abri', plant: 'Plant mis en terre' };
+  function gesteDuMode(mode) { return mode === 'plant' ? 'plantation' : mode; }
+
+  /* ---------- Climat ---------- */
+  function zone(id) { return CLIMATS.zones[id] || CLIMATS.zones[CLIMATS.reference]; }
+  function decalage(mmjj, zoneId) {
+    var z = zone(zoneId), mois = +mmjj.split('-')[0];
+    return mois <= 7 ? z.decalagePrintemps : z.decalageAutomne;
+  }
+  function dateClimat(annee, mmjj, zoneId) { return ajouterJours(dateMMJJ(annee, mmjj), decalage(mmjj, zoneId)); }
+
+  /** Périodes réelles (dates) d'un geste pour une zone, sur l'année et ses voisines */
+  function periodes(c, geste, zoneId, annee) {
+    var d = c.demarrage[geste]; if (!d) return [];
+    var res = [];
+    [annee - 1, annee, annee + 1].forEach(function (y) {
+      d.fenetres.forEach(function (f) {
+        var du = dateClimat(y, f.du, zoneId), au = dateClimat(y, f.au, zoneId);
+        if (au < du) au = dateClimat(y + 1, f.au, zoneId);
+        res.push({
+          du: du, au: au,
+          top: (f.top || []).map(function (t) { return { du: dateClimat(y, t[0], zoneId), au: dateClimat(y, t[1], zoneId) }; })
+        });
+      });
+    });
+    return res;
+  }
+
+  /** Niveau « climatique » (année normale) pour un geste à une date */
+  function niveauClimatique(c, geste, date, zoneId) {
+    var d = jourDe(date), ps = periodes(c, geste, zoneId, d.getFullYear());
+    var marge = REGLES.margeConditionsJours, z = zone(zoneId);
+    var meilleur = { niveau: 0, libelle: 'hors saison', raison: '' };
+    var prochaine = null;
+    ps.forEach(function (p) {
+      if (p.du > d && (!prochaine || p.du < prochaine)) prochaine = p.du;
+      var dedans = d >= p.du && d <= p.au;
+      if (dedans) {
+        var top = p.top.some(function (t) { return d >= t.du && d <= t.au; });
+        var n = top ? 3 : 2;
+        if (n > meilleur.niveau) meilleur = {
+          niveau: n, libelle: NIVEAUX[n],
+          raison: top ? 'pleine saison en climat ' + z.nom.toLowerCase().replace(' (référence)', '') : 'dans la période habituelle (jusqu’au ' + formatDate(p.au) + ')'
+        };
+      } else if (meilleur.niveau < 1) {
+        var avant = ecartJours(d, p.du), apres = ecartJours(p.au, d);
+        if (avant > 0 && avant <= marge) {
+          meilleur = { niveau: 1, libelle: NIVEAUX[1], raison: geste === 'semis_abri' ? 'un peu tôt : possible au chaud et avec beaucoup de lumière' : 'un peu tôt : possible si le temps est doux, sous voile de protection' };
+        } else if (apres > 0 && apres <= marge) {
+          meilleur = { niveau: 1, libelle: NIVEAUX[1], raison: 'un peu tard : encore possible, mais la culture aura moins de temps' };
+        }
+      }
+    });
+    if (meilleur.niveau === 0) {
+      meilleur.raison = prochaine ? 'hors saison, prochaine période à partir du ' + formatDate(prochaine) : 'hors saison';
+    }
+    meilleur.prochaine = prochaine;
+    return meilleur;
+  }
+
+  /* ---------- Météo ---------- */
+  function joursMeteo(meteo, depuis, nb) {
+    if (!meteo || !meteo.jours) return [];
+    var a = isoDate(jourDe(depuis)), b = isoDate(ajouterJours(jourDe(depuis), nb - 1));
+    return meteo.jours.filter(function (j) { return j.date >= a && j.date <= b; });
+  }
+  function dateHeure(s) { var p = s.split('T'), d = p[0].split('-'), h = (p[1] || '00:00').split(':'); return new Date(+d[0], +d[1] - 1, +d[2], +h[0], +h[1] || 0); }
+
+  /**
+   * Conseil pour un geste à une date : niveau climatique, affiné par la météo
+   * des prochains jours pour les gestes faits dehors.
+   */
+  function conseilGeste(c, geste, date, zoneId, meteo) {
+    var clim = niveauClimatique(c, geste, date, zoneId);
+    var r = { geste: geste, nomGeste: nomGeste(c, geste), niveau: clim.niveau, libelle: clim.libelle, raison: clim.raison, climatique: clim.niveau, affine: false, meteoIndisponible: false, prochaine: clim.prochaine };
+    if (geste === 'semis_abri') { r.affine = true; if (r.niveau > 0) r.note = 'À l’intérieur, la météo extérieure compte peu.'; return r; }
+    var jours = joursMeteo(meteo, date, REGLES.horizonMeteoJours);
+    if (jours.length < 2) {
+      r.meteoIndisponible = true;
+      if (r.niveau === 3) { r.niveau = 2; r.libelle = NIVEAUX[2]; }
+      r.note = 'Conseil du jour non affiné : météo indisponible.';
+      return r;
+    }
+    r.affine = true;
+    var plusFroid = jours.reduce(function (a, j) { return j.tmin < a.tmin ? j : a; });
+    var plusChaud = jours.reduce(function (a, j) { return j.tmax > a.tmax ? j : a; });
+    var tmin = plusFroid.tmin, f = c.froid, quandFroid = formatJour(lireDate(plusFroid.date));
+    if (clim.niveau === 0) {
+      r.libelle = 'hors saison';
+      return r;
+    }
+    if (tmin <= f.gelTolere) {
+      r.niveau = 0; r.libelle = 'attendre';
+      r.raison = (tmin <= 0 ? 'gel annoncé' : 'risque de gelée au sol') + ' (' + fmtT(tmin) + ' ' + quandFroid + ')';
+      return r;
+    }
+    if (tmin < f.nuitMin) {
+      r.niveau = 0; r.libelle = 'attendre';
+      r.raison = 'nuits trop fraîches (' + fmtT(tmin) + ' annoncés ' + quandFroid + ')';
+      return r;
+    }
+    var gene = [];
+    if (tmin < f.nuitIdeale) gene.push('nuits fraîches (' + fmtT(tmin) + ') : protège avec un voile la nuit');
+    if (geste === 'semis_place' && c.chaleur && c.chaleur.semisMax && plusChaud.tmax > c.chaleur.semisMax) gene.push('chaleur annoncée (' + fmtT(plusChaud.tmax) + ') : sème le soir à l’ombre et garde humide');
+    if (gene.length) {
+      r.niveau = Math.min(r.niveau, 1); r.libelle = NIVEAUX[r.niveau];
+      r.raison = gene.join(' ; ');
+      return r;
+    }
+    if (r.niveau === 3) r.raison += ' et météo favorable (nuits ≥ ' + fmtT(tmin) + ')';
+    else r.raison += ', météo sans risque cette semaine';
+    return r;
+  }
+  function fmtT(t) { return Math.round(t) + ' °C'; }
+
+  /** Conseil jour par jour sur les jours couverts par les prévisions */
+  function conseilParJour(c, geste, depuis, zoneId, meteo, nb) {
+    var out = [];
+    for (var i = 0; i < (nb || 7); i++) {
+      var d = ajouterJours(jourDe(depuis), i);
+      var j = joursMeteo(meteo, d, 1)[0];
+      if (!j) break;
+      var cg = conseilGeste(c, geste, d, zoneId, meteo);
+      if (cg.meteoIndisponible) break;
+      out.push({ date: d, tmin: j.tmin, tmax: j.tmax, pluie: j.pluie, niveau: cg.niveau, libelle: cg.libelle, raison: cg.raison });
+    }
+    return out;
+  }
+
+  /** Bandeau annuel : 36 décades avec niveau climatique */
+  function bandeauAnnuel(c, geste, zoneId, annee) {
+    var cases = [];
+    for (var m = 0; m < 12; m++) {
+      [5, 15, 25].forEach(function (j) {
+        var d = new Date(annee, m, j, 12);
+        cases.push({ date: d, niveau: niveauClimatique(c, geste, d, zoneId).niveau });
+      });
+    }
+    return cases;
+  }
+
+  /* ---------- Espaces ---------- */
+  function surfacePlant(c) { return c.espacement.plant * c.espacement.rang; }
+  function capacite(c, espace, plantationsActives) {
+    var L = +espace.longueur || 0, l = +espace.largeur || 0, ep = c.espacement.plant, er = c.espacement.rang;
+    var g1 = Math.floor(L / ep) * Math.floor(l / er), g2 = Math.floor(l / ep) * Math.floor(L / er);
+    var total = Math.max(g1, g2);
+    if (total === 0 && L * l >= ep * er * 0.7) total = 1;
+    var occupe = 0;
+    (plantationsActives || []).forEach(function (p) {
+      var cp = culture(p.cultureId); if (!cp) return;
+      occupe += (p.quantite || 1) * surfacePlant(cp);
+    });
+    var libreSurface = Math.max(0, L * l - occupe);
+    var libre = Math.min(total, Math.floor(libreSurface / surfacePlant(c) + 0.0001));
+    if (libre === 0 && total >= 1 && libreSurface >= surfacePlant(c) * 0.7) libre = 1;
+    return { total: total, libre: libre };
+  }
+  function compatibilite(c, espace) {
+    var raisons = [], notes = [];
+    var soleil = espace.soleil || 'plein';
+    if (c.soleil.indexOf(soleil) < 0) raisons.push(soleil === 'ombre' ? 'trop d’ombre' : 'demande le plein soleil');
+    if (espace.type === 'bac') {
+      var p = +espace.profondeur || 0;
+      if (!c.bac.possible) raisons.push('déconseillé en bac');
+      else if (p && p < c.bac.profondeurMin) {
+        if (c.id === 'carotte' && p >= 15) notes.push('bac peu profond : choisis une carotte ronde (type Marché de Paris)');
+        else raisons.push('bac trop peu profond (' + c.bac.profondeurMin + ' cm conseillés)');
+      }
+    }
+    if (capacite(c, espace, []).total < 1) raisons.push('espace trop petit (' + c.espacement.plant + ' × ' + c.espacement.rang + ' cm par plant)');
+    if (espace.pluie === 'abri') notes.push('sous abri : pense à arroser, la pluie ne l’atteint pas');
+    return { ok: raisons.length === 0, raisons: raisons, notes: notes };
+  }
+
+  function phraseDemarrage(c, g) {
+    var com = c.demarrage[g].comment || GESTES[g].nom;
+    return com;
+  }
+
+  /** Suggestions « Quoi planter cette semaine ? » pour un espace (ou sans espace) */
+  function suggestions(espace, date, zoneId, meteo, plantationsActives) {
+    var res = [];
+    CULTURES.forEach(function (c) {
+      var compat = espace ? compatibilite(c, espace) : { ok: true, raisons: [], notes: [] };
+      var conseils = gestesDe(c).map(function (g) { return conseilGeste(c, g, date, zoneId, meteo); });
+      var best = conseils.reduce(function (a, b) {
+        if (b.niveau !== a.niveau) return b.niveau > a.niveau ? b : a;
+        return (b.geste === 'semis_place' || (b.geste === 'plantation' && a.geste === 'semis_abri')) ? b : a;
+      });
+      var cap = espace ? capacite(c, espace, plantationsActives || []) : null;
+      res.push({ culture: c, compat: compat, conseils: conseils, meilleur: best, capacite: cap, demarrage: phraseDemarrage(c, best.geste) });
+    });
+    return res.sort(function (a, b) {
+      if (a.compat.ok !== b.compat.ok) return a.compat.ok ? -1 : 1;
+      return b.meilleur.niveau - a.meilleur.niveau || a.culture.nom.localeCompare(b.culture.nom);
+    });
+  }
+
+  /* ---------- Suivi des cultures ---------- */
+  function facteurVariete(c, varieteId) {
+    if (!varieteId) return 1;
+    var v = (c.varietes || []).filter(function (x) { return x.id === varieteId; })[0];
+    return v ? v.facteur : 1;
+  }
+  function texteEtape(c, etape, cle) {
+    return (c.etapes && c.etapes[etape] && c.etapes[etape][cle]) || (ETAPES[etape] && ETAPES[etape][cle]) || '';
+  }
+  function prochaineOccurrence(mmjj, apres, zoneId) {
+    var y = apres.getFullYear(), d = dateClimat(y, mmjj, zoneId);
+    if (d < jourDe(apres)) d = dateClimat(y + 1, mmjj, zoneId);
+    return d;
+  }
+
+  /**
+   * Calcule la chronologie d'une plantation : pour chaque étape, date observée
+   * ou fenêtre estimée. Les estimations repartent de la dernière observation réelle.
+   */
+  function chronologie(p, zoneId, maintenant) {
+    var c = culture(p.cultureId), parcours = c.parcours[p.mode] || [];
+    var f = facteurVariete(c, p.varieteId), depart = lireDate(p.date);
+    var obs = p.observations || {};
+    if (p.premiereRecolte) obs = Object.assign({}, obs, { recolte: p.premiereRecolte });
+    var dernierObs = -1;
+    parcours.forEach(function (s, i) { if (obs[s.etape]) dernierObs = i; });
+    var centre = depart, variance = 0, etapes = [];
+    parcours.forEach(function (s, i) {
+      var e = { etape: s.etape, titre: (ETAPES[s.etape] || {}).titre, bouton: (ETAPES[s.etape] || {}).bouton };
+      if (obs[s.etape]) {
+        var d = lireDate(obs[s.etape]);
+        centre = d; variance = 0;
+        e.observe = d; e.du = d; e.au = d; e.statut = 'fait';
+      } else {
+        var moy = (s.j[0] + s.j[1]) / 2 * f, dem = (s.j[1] - s.j[0]) / 2 * f;
+        centre = ajouterJours(centre, moy); variance += dem * dem;
+        var ec = Math.sqrt(variance);
+        var du = ajouterJours(centre, -ec), au = ajouterJours(centre, ec);
+        if (s.calendaire) {
+          var cdu = prochaineOccurrence(s.calendaire.du, i === 0 ? depart : (etapes[i - 1].du), zoneId);
+          var cau = ajouterJours(cdu, ecartJours(dateMMJJ(2001, s.calendaire.du), dateMMJJ(2001, s.calendaire.au)) + (decalage(s.calendaire.au, zoneId) - decalage(s.calendaire.du, zoneId)));
+          if (du < cdu) {
+            var nau = au > cau ? au : cau;
+            du = cdu; au = nau;
+            centre = new Date((du.getTime() + au.getTime()) / 2);
+            variance = Math.pow(ecartJours(du, au) / 2, 2);
+          }
+        }
+        e.du = jourDe(du); e.au = jourDe(au);
+        e.statut = i < dernierObs ? 'passe' : 'attendu';
+      }
+      etapes.push(e);
+    });
+    var prochaine = null;
+    for (var i = dernierObs + 1; i < etapes.length; i++) { prochaine = etapes[i]; break; }
+    return { culture: c, etapes: etapes, prochaine: prochaine, depart: depart, recolte: etapes.filter(function (e) { return e.etape === 'recolte'; })[0] };
+  }
+
+  function dateEtape(chrono, p, etape) {
+    var depart = p.mode === 'plant' ? 'plantation' : 'semis';
+    if (etape === depart) return { date: chrono.depart, observe: true };
+    var e = chrono.etapes.filter(function (x) { return x.etape === etape; })[0];
+    if (!e) return null;
+    if (e.observe || e.statut === 'passe') return { date: e.observe || e.du, observe: true };
+    return { date: e.du, observe: false };
+  }
+
+  /** Fiche de suivi complète d'une plantation */
+  function suivi(p, zoneId, maintenant, meteo) {
+    var auj = jourDe(maintenant), chrono = chronologie(p, zoneId, maintenant), c = chrono.culture;
+    var r = { plantation: p, culture: c, chronologie: chrono, gestes: [] };
+    var pro = chrono.prochaine;
+    if (p.terminee) { r.statut = 'terminee'; return r; }
+    if (p.premiereRecolte) {
+      r.statut = 'en_recolte';
+      r.message = c.recolte.multiple ? 'Récolte en cours' + (c.recolte.duree ? ' (' + c.recolte.duree + ')' : '') + '. Continue de cueillir au fur et à mesure.' : '';
+    } else if (pro) {
+      r.statut = 'en_cours';
+      r.prochaine = {
+        etape: pro.etape, titre: pro.titre, bouton: pro.bouton, du: pro.du, au: pro.au,
+        fenetre: formatFenetre(pro.du, pro.au),
+        normal: texteEtape(c, pro.etape, 'normal'),
+        enRetard: auj > pro.au,
+        controle: auj > pro.au ? texteEtape(c, pro.etape, 'controle') : ''
+      };
+      if (pro.etape === 'plantation') {
+        r.prochaine.conseilPlantation = conseilGeste(c, 'plantation', auj, zoneId, meteo);
+      }
+    }
+    var rec = chrono.recolte;
+    if (rec && !p.premiereRecolte) {
+      r.recolte = { du: rec.du, au: rec.au, fenetre: formatFenetre(rec.du, rec.au), approche: ecartJours(auj, rec.du) <= REGLES.approcheRecolteJours, signe: c.recolte.signe };
+    }
+    (c.gestes || []).forEach(function (g) {
+      var ancre = dateEtape(chrono, p, g.apres);
+      if (!ancre) return;
+      if (!ancre.observe && !(g.apres === 'recolte')) return;
+      if (g.apres === 'recolte' && p.premiereRecolte) return;
+      var debut = ajouterJours(ancre.date, g.j[0]), fin = ajouterJours(ancre.date, g.j[1]);
+      if (auj >= jourDe(debut) && auj <= jourDe(fin)) r.gestes.push(g);
+    });
+    return r;
+  }
+
+  /** Étapes qu'on peut confirmer à la main (dans l'ordre du parcours) */
+  function etapesConfirmables(p) {
+    var c = culture(p.cultureId);
+    return (c.parcours[p.mode] || []).map(function (s) { return s.etape; }).filter(function (e) { return e !== 'recolte'; });
+  }
+
+  /* ---------- Arrosage ---------- */
+  function facteurChaleur(tmax) {
+    var t = REGLES.arrosage.chaleur;
+    for (var i = 0; i < t.length; i++) if (tmax >= t[i].min) return t[i].f;
+    return 1;
+  }
+
+  /**
+   * Estime quand vérifier la terre d'un espace.
+   *  espace : { id, type: 'bac'|'pleine_terre', pluie: 'ciel_ouvert'|'abri' }
+   *  actives : plantations en cours dans cet espace
+   *  arrosages : [{ date: ISO datetime }] de cet espace
+   *  reports : [{ date: ISO datetime }] « Terre encore humide »
+   */
+  function arrosage(espace, actives, arrosages, reports, meteo, zoneId, maintenant) {
+    var R = REGLES.arrosage, type = espace.type === 'bac' ? 'bac' : 'pleine_terre';
+    var nomLieu = type === 'bac' ? 'du bac' : 'de la parcelle';
+    var res = { espace: espace, raisons: [], dernierArrosage: null };
+    var derniers = (arrosages || []).map(function (a) { return new Date(a.date); }).sort(function (a, b) { return b - a; });
+    res.dernierArrosage = derniers[0] || null;
+    if (!actives || !actives.length) { res.statut = 'vide'; res.conseil = 'Aucune culture en cours : pas d’arrosage à prévoir.'; return res; }
+
+    var fStade = Infinity, aArroser = [], stop = [];
+    actives.forEach(function (p) {
+      var c = culture(p.cultureId), s = suivi(p, zoneId, maintenant, meteo), f = R.facteurBesoin[c.arrosage.besoin] || 1;
+      var pro = s.prochaine && s.prochaine.etape;
+      if (c.arrosage.stopAvantRecolte && s.recolte && ecartJours(maintenant, s.recolte.du) <= c.arrosage.stopAvantRecolte) {
+        stop.push(c.nom); return;
+      }
+      if (pro === 'levee' && p.mode !== 'plant') { f = Math.min(f, R.facteurStade.semisNonLeve); res.raisons.push(c.nom + ' pas encore levé : surface à garder humide'); }
+      else if (pro === 'levee' || pro === 'reprise') { f = Math.min(f, R.facteurStade.reprise); res.raisons.push(c.nom + ' en reprise : racines encore courtes'); }
+      else if (c.arrosage.besoin === 'eleve' && (pro === 'fruits' || pro === 'recolte' || s.statut === 'en_recolte')) { f = Math.min(f, R.facteurStade.fructificationGourmande); res.raisons.push(c.nom + ' en production : gros besoin d’eau'); }
+      aArroser.push(c.nom);
+      fStade = Math.min(fStade, f);
+    });
+    if (stop.length) res.raisons.push(stop.join(', ') + ' : ne plus arroser, la récolte approche');
+    if (!aArroser.length) { res.statut = 'pas_arroser'; res.conseil = 'Ne plus arroser : la récolte approche (meilleure conservation).'; return res; }
+
+    var reference = res.dernierArrosage, depuisPlantation = false;
+    if (!reference) {
+      reference = actives.map(function (p) { var d = lireDate(p.date); d.setHours(18); return d; }).sort(function (a, b) { return b - a; })[0];
+      depuisPlantation = true;
+      res.raisons.push('je compte depuis le semis ou la plantation');
+    }
+
+    // Chaleur : du jour de référence à demain
+    var fChaleur = 1;
+    if (meteo && meteo.jours && meteo.jours.length) {
+      var a = isoDate(jourDe(reference)), b = isoDate(ajouterJours(jourDe(maintenant), 1));
+      var js = meteo.jours.filter(function (j) { return j.date >= a && j.date <= b; });
+      if (js.length) {
+        var tmax = Math.max.apply(null, js.map(function (j) { return j.tmax; }));
+        fChaleur = facteurChaleur(tmax);
+        if (fChaleur < 1) res.raisons.push('chaleur (' + fmtT(tmax) + ') : la terre sèche plus vite');
+        else if (fChaleur > 1) res.raisons.push('temps frais (' + fmtT(tmax) + ') : la terre sèche lentement');
+      }
+      res.meteoUtilisee = true;
+    } else {
+      res.meteoUtilisee = false;
+      res.raisons.push('météo indisponible : estimation sans chaleur ni pluie');
+    }
+    var intervalle = Math.max(R.intervalleMin, Math.min(R.intervalleMax, R.intervalleBase[type] * fStade * fChaleur));
+    res.intervalleJours = intervalle;
+
+    // Pluie tombée (uniquement si l'espace y est exposé, et uniquement le passé)
+    var refEffective = reference, partielle = 0, totalPluie = 0;
+    if (espace.pluie === 'abri') {
+      res.raisons.push('sous abri : la pluie ne compte pas');
+    } else if (meteo && meteo.heures) {
+      var seuil = R.seuilPluie[type], cumul = 0;
+      meteo.heures.forEach(function (h) {
+        var t = dateHeure(h.t);
+        if (t <= reference || t > maintenant || !h.pluie) return;
+        cumul += h.pluie; totalPluie += h.pluie;
+        if (cumul >= seuil) { refEffective = t; cumul = 0; }
+      });
+      partielle = cumul;
+      if (refEffective !== reference) res.raisons.push('pluie récente (' + arrondi(totalPluie) + ' mm) : compte comme un arrosage');
+      else if (totalPluie >= 1) res.raisons.push('petite pluie (' + arrondi(totalPluie) + ' mm) : prise en compte en partie');
+      res.pluieRecue = totalPluie;
+    }
+    var prochaine = new Date(refEffective.getTime() + intervalle * JOUR * (1 + 0.5 * Math.min(1, partielle / R.seuilPluie[type])));
+
+    // « Terre encore humide »
+    var dernierReport = (reports || []).map(function (r) { return new Date(r.date); }).filter(function (d) { return d > refEffective; }).sort(function (a, b) { return b - a; })[0];
+    if (dernierReport) {
+      var apresReport = new Date(dernierReport.getTime() + Math.max(R.intervalleMin, intervalle / 2) * JOUR);
+      if (apresReport > prochaine) prochaine = apresReport;
+      res.raisons.push('terre encore humide le ' + formatDate(dernierReport) + ' : vérification reportée');
+    }
+    res.prochaine = prochaine;
+
+    // Pluie annoncée : influe sur le conseil, n'est jamais comptée comme reçue
+    var annoncee = 0;
+    if (espace.pluie !== 'abri' && meteo && meteo.heures) {
+      var lim = new Date(maintenant.getTime() + JOUR);
+      meteo.heures.forEach(function (h) { var t = dateHeure(h.t); if (t > maintenant && t <= lim) annoncee += h.pluie || 0; });
+    }
+    res.pluieAnnoncee = annoncee;
+
+    if (maintenant >= prochaine) {
+      res.statut = 'a_verifier';
+      res.conseil = 'Vérifie la terre ' + nomLieu + '. Si elle est sèche, arrose.';
+      if (annoncee >= R.pluieAnnonceeSignificative) {
+        res.conseil += ' De la pluie est annoncée (' + arrondi(annoncee) + ' mm d’ici demain) : si la terre n’est sèche qu’en surface, tu peux l’attendre.';
+      }
+    } else {
+      res.statut = 'ok';
+      res.conseil = 'Prochaine vérification : ' + quand(prochaine, maintenant) + '.';
+      if (annoncee >= R.pluieAnnonceeSignificative) res.conseil += ' Pluie annoncée (' + arrondi(annoncee) + ' mm) : elle sera comptée une fois tombée.';
+    }
+    return res;
+  }
+  function arrondi(x) { return Math.round(x * 10) / 10; }
+
+  /** Cultures à proposer quand un espace se libère */
+  function apresCulture(cultureId, espace, date, zoneId, meteo, actives) {
+    var c = culture(cultureId), ids = c.ensuite || [];
+    var toutes = suggestions(espace, date, zoneId, meteo, actives || []);
+    var proposees = toutes.filter(function (s) { return s.compat.ok && s.meilleur.niveau >= 1; });
+    proposees.sort(function (a, b) {
+      var ia = ids.indexOf(a.culture.id) >= 0 ? 0 : 1, ib = ids.indexOf(b.culture.id) >= 0 ? 0 : 1;
+      return ia - ib || b.meilleur.niveau - a.meilleur.niveau;
+    });
+    return proposees.slice(0, 5);
+  }
+
+  var Moteur = {
+    REGLES: REGLES, NIVEAUX: NIVEAUX, GESTES: GESTES, NOMS_MODES: NOMS_MODES,
+    cultures: function () { return CULTURES; }, culture: culture, gestesDe: gestesDe, modesDe: modesDe, nomGeste: nomGeste, gesteDuMode: gesteDuMode,
+    zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
+    capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
+    chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
+    arrosage: arrosage,
+    dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
+  };
+  racine.Moteur = Moteur;
+  if (typeof module !== 'undefined') module.exports = Moteur;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/*
+ * Météo et recherche de commune — services gratuits sans clé :
+ *  - geo.api.gouv.fr (API officielle des communes françaises) : nom / code postal
+ *  - Open-Meteo : prévisions (températures, pluie) et altitude ; géocodage de secours
+ * En cas d'échec, l'app continue avec le calendrier climatique seul.
+ */
+(function (racine) {
+  var CLE_CACHE = 'potager.meteo.v1';
+  var DUREE_FRAICHE = 3 * 3600 * 1000;   // on réutilise une prévision de moins de 3 h
+  var DUREE_MAX = 24 * 3600 * 1000;      // au-delà de 24 h, une prévision est périmée
+
+  function avecDelai(url, ms) {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, ms || 8000);
+    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) {
+      clearTimeout(t);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }, function (e) { clearTimeout(t); throw e; });
+  }
+
+  /** Recherche d'une commune par nom ou code postal → [{nom, codePostal, departement, lat, lon}] */
+  function chercherCommune(q) {
+    q = String(q || '').trim();
+    if (!q) return Promise.resolve([]);
+    var cp = /^\d{5}$/.test(q);
+    var url = 'https://geo.api.gouv.fr/communes?' + (cp ? 'codePostal=' + q : 'nom=' + encodeURIComponent(q) + '&boost=population&limit=8') + '&fields=nom,centre,codesPostaux,codeDepartement&format=json';
+    return avecDelai(url).then(function (liste) {
+      return liste.filter(function (c) { return c.centre; }).map(function (c) {
+        return { nom: c.nom, codePostal: cp ? q : (c.codesPostaux || [])[0] || '', departement: c.codeDepartement, lat: c.centre.coordinates[1], lon: c.centre.coordinates[0] };
+      });
+    }).catch(function () {
+      var u2 = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=8&language=fr&countryCode=FR';
+      return avecDelai(u2).then(function (r) {
+        return (r.results || []).map(function (c) {
+          return { nom: c.name, codePostal: (c.postcodes || [])[0] || '', departement: c.admin2 || '', lat: c.latitude, lon: c.longitude, altitude: c.elevation };
+        });
+      });
+    });
+  }
+
+  function altitude(lat, lon) {
+    return avecDelai('https://api.open-meteo.com/v1/elevation?latitude=' + lat + '&longitude=' + lon).then(function (r) {
+      return r.elevation && r.elevation.length ? r.elevation[0] : null;
+    }).catch(function () { return null; });
+  }
+
+  function normaliser(r) {
+    var jours = [], heures = [];
+    var d = r.daily || {}, h = r.hourly || {};
+    (d.time || []).forEach(function (t, i) {
+      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: d.precipitation_sum ? d.precipitation_sum[i] : 0 });
+    });
+    (h.time || []).forEach(function (t, i) { heures.push({ t: t, pluie: h.precipitation[i] || 0 }); });
+    return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures };
+  }
+
+  function lireCache() { try { return JSON.parse(localStorage.getItem(CLE_CACHE) || 'null'); } catch (e) { return null; } }
+  function ecrireCache(c) { try { localStorage.setItem(CLE_CACHE, JSON.stringify(c)); } catch (e) { /* stockage plein ou bloqué */ } }
+
+  /**
+   * Prévisions pour un lieu. Renvoie toujours une promesse résolue :
+   *  { meteo, etat: 'ok' | 'cache' | 'indisponible', message }
+   */
+  function prevision(lat, lon, forcer) {
+    var cle = lat.toFixed(3) + ',' + lon.toFixed(3);
+    var cache = lireCache(), maintenant = Date.now();
+    if (!forcer && cache && cache.cle === cle && maintenant - cache.date < DUREE_FRAICHE) {
+      return Promise.resolve({ meteo: cache.meteo, etat: 'ok' });
+    }
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&hourly=precipitation&past_days=3&forecast_days=8&timezone=auto';
+    return avecDelai(url).then(function (r) {
+      var m = normaliser(r);
+      ecrireCache({ cle: cle, date: maintenant, meteo: m });
+      return { meteo: m, etat: 'ok' };
+    }).catch(function () {
+      if (cache && cache.cle === cle && maintenant - cache.date < DUREE_MAX) {
+        return { meteo: cache.meteo, etat: 'cache', message: 'Météo non actualisée : dernières prévisions de ' + new Date(cache.date).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) + '.' };
+      }
+      return { meteo: null, etat: 'indisponible', message: 'Météo indisponible : le calendrier climatique reste valable, mais le conseil du jour n’a pas pu être affiné (gel, chaleur, pluie).' };
+    });
+  }
+
+  racine.Meteo = { chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/*
+ * Enregistrement des données du potager.
+ *  - Toujours une copie dans le navigateur (localStorage), quand il le permet.
+ *  - Dans l'app hébergée sur claude.ai : copie privée dans ton espace Claude
+ *    (capacité « db »), retrouvée sur tous tes appareils.
+ */
+(function (racine) {
+  var CLE = 'potager.v1';
+  var vide = function () { return { version: 1, maj: 0, profil: null, espaces: [], plantations: [], arrosages: [], reports: [] }; };
+  var etat = charger();
+  var distant = null, ecritureEnCours = false, aRecrire = false, minuteur = null;
+  var abonnes = [];
+
+  function charger() {
+    try {
+      var e = JSON.parse(localStorage.getItem(CLE) || 'null');
+      if (e && e.version === 1) return Object.assign(vide(), e);
+    } catch (err) { /* stockage indisponible ou illisible */ }
+    return vide();
+  }
+  function sauverLocal() { try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (e) { /* navigation privée */ } }
+  function sauver() {
+    etat.maj = Date.now();
+    sauverLocal();
+    if (distant) { clearTimeout(minuteur); minuteur = setTimeout(envoyer, 600); }
+  }
+  function envoyer() {
+    if (!distant) return;
+    if (ecritureEnCours) { aRecrire = true; return; }
+    ecritureEnCours = true;
+    distant.set({ json: JSON.stringify(etat), maj: etat.maj }).catch(function (e) {
+      Store.erreurSynchro = (e && e.code) || 'erreur';
+    }).then(function () {
+      ecritureEnCours = false;
+      if (aRecrire) { aRecrire = false; envoyer(); }
+    });
+  }
+
+  /* Connexion à l'enregistrement claude.ai, si la page y est hébergée. */
+  function connecter() {
+    if (!(racine.claude && racine.claude.use)) return;
+    Promise.all([racine.claude.use('db'), racine.claude.use('user')]).then(function (r) {
+      var db = r[0], user = r[1];
+      if (!db || !user) return null;
+      return user.id().then(function (uid) {
+        if (!uid) return null;
+        var ref = db.doc('data/users/' + uid + '/potager');
+        return ref.get().then(function (snap) {
+          distant = ref;
+          Store.synchro = true;
+          var d = snap.exists ? snap.data() : null;
+          if (d && d.json && (d.maj || 0) > (etat.maj || 0)) {
+            try { etat = Object.assign(vide(), JSON.parse(d.json)); sauverLocal(); } catch (e) { /* ignorer */ }
+          } else if (etat.maj) {
+            envoyer();
+          }
+          abonnes.forEach(function (f) { f(); });
+        });
+      });
+    }).catch(function () { /* pas de synchronisation : le navigateur garde les données */ });
+  }
+
+  function id(prefixe) { return prefixe + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
+
+  var Store = {
+    synchro: false,
+    get etat() { return etat; },
+    surChargement: function (f) { abonnes.push(f); },
+    recharger: function () { etat = charger(); },
+    definirProfil: function (p) { etat.profil = Object.assign({}, etat.profil || {}, p); sauver(); },
+    ajouterEspace: function (e) { e.id = id('esp'); etat.espaces.push(e); sauver(); return e; },
+    modifierEspace: function (idE, champs) { var e = Store.espace(idE); if (e) { Object.assign(e, champs); sauver(); } },
+    supprimerEspace: function (idE) {
+      etat.espaces = etat.espaces.filter(function (e) { return e.id !== idE; });
+      etat.plantations.forEach(function (p) { if (p.espaceId === idE && !p.terminee) p.terminee = new Date().toISOString().slice(0, 10); });
+      sauver();
+    },
+    espace: function (idE) { return etat.espaces.filter(function (e) { return e.id === idE; })[0]; },
+    ajouterPlantation: function (p) { p.id = id('cult'); p.observations = p.observations || {}; etat.plantations.push(p); sauver(); return p; },
+    plantation: function (idP) { return etat.plantations.filter(function (p) { return p.id === idP; })[0]; },
+    modifierPlantation: function (idP, champs) { var p = Store.plantation(idP); if (p) { Object.assign(p, champs); sauver(); } return p; },
+    observer: function (idP, etape, date) { var p = Store.plantation(idP); if (!p) return; p.observations[etape] = date; sauver(); },
+    annulerObservation: function (idP, etape) { var p = Store.plantation(idP); if (!p) return; delete p.observations[etape]; sauver(); },
+    supprimerPlantation: function (idP) { etat.plantations = etat.plantations.filter(function (p) { return p.id !== idP; }); sauver(); },
+    actives: function (idE) { return etat.plantations.filter(function (p) { return !p.terminee && (!idE || p.espaceId === idE); }); },
+    arroser: function (ids, quand) {
+      var d = (quand || new Date()).toISOString();
+      ids.forEach(function (i) { etat.arrosages.push({ espaceId: i, date: d }); });
+      etat.arrosages = etat.arrosages.slice(-500);
+      sauver();
+    },
+    terreHumide: function (idE, quand) { etat.reports.push({ espaceId: idE, date: (quand || new Date()).toISOString() }); etat.reports = etat.reports.slice(-200); sauver(); },
+    arrosagesDe: function (idE) { return etat.arrosages.filter(function (a) { return a.espaceId === idE; }); },
+    reportsDe: function (idE) { return etat.reports.filter(function (a) { return a.espaceId === idE; }); },
+    toutEffacer: function () { etat = vide(); sauver(); }
+  };
+  racine.Store = Store;
+  connecter();
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/*
+ * Interface — écrans, navigation et actions. Aucune règle horticole ici :
+ * tout passe par Moteur (js/moteur.js) et les fiches (data/).
+ */
+(function () {
+  var M = window.Moteur, S = window.Store, D = M.dates;
+  var app = document.getElementById('app');
+  var meteoEtat = { etat: 'aucune', meteo: null, message: '' };
+
+  /* ---------- Utilitaires ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function maintenant() { return new Date(); }
+  function unite(n, u) { return n > 1 || /s$/.test(u) && /(radis)$/.test(u) ? u : u.replace(/s$/, ''); }
+  function aujourdhuiISO() { return D.iso(maintenant()); }
+  function zoneId() { return (S.etat.profil && S.etat.profil.zone) || 'tempere'; }
+  function meteo() { return meteoEtat.meteo; }
+  // Navigation interne : fonctionne aussi dans un cadre où l'adresse ne peut pas changer.
+  var route = /^#\//.test(location.hash) ? location.hash : '#/';
+  function aller(h) {
+    route = h; rendre(); window.scrollTo(0, 0);
+    try { if (location.hash !== h) history.replaceState(null, '', h); } catch (e) { /* adresse figée */ }
+  }
+  // Confirmation dans la page (les boîtes de dialogue du navigateur peuvent être bloquées)
+  function confirmer(b, fn) {
+    if (b.getAttribute('data-arme') === '1') { fn(); return; }
+    b.setAttribute('data-arme', '1');
+    b.setAttribute('data-texte', b.textContent);
+    b.textContent = 'Touche encore pour confirmer';
+    setTimeout(function () { if (b.isConnected) { b.removeAttribute('data-arme'); b.textContent = b.getAttribute('data-texte'); } }, 4000);
+  }
+  function badge(nomGeste, c) {
+    return '<span class="badge n' + c.niveau + '">' + esc(nomGeste) + ' · ' + esc(c.libelle) + '</span>';
+  }
+  function conseilBloc(c) {
+    return '<div class="conseil">' + badge(c.nomGeste, c) + '<p class="raison">' + esc(capitale(c.raison)) + (c.note ? ' <em>' + esc(c.note) + '</em>' : '') + '</p></div>';
+  }
+  function capitale(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function nomEspace(id) { var e = S.espace(id); return e ? e.nom : 'espace supprimé'; }
+  function heure(d) { return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  function dernierArrosageTexte(d) {
+    if (!d) return 'Aucun arrosage noté';
+    var n = D.ecart(d, maintenant());
+    var j = n === 0 ? 'aujourd’hui' : n === 1 ? 'hier' : D.formatJour(d);
+    return 'Dernier arrosage : ' + j + ' à ' + heure(d);
+  }
+  function bandeauMeteo() {
+    var p = S.etat.profil;
+    if (!p || !p.commune) return '';
+    if (typeof p.lat !== 'number') return '<div class="meteo meteo-ko" data-test="meteo"><strong>Météo non disponible</strong> : ta commune n’a pas pu être localisée. Le calendrier climatique reste valable, mais le conseil du jour n’est pas affiné (gel, chaleur, pluie).</div>';
+    var txt;
+    if (meteoEtat.etat === 'chargement') txt = 'Chargement de la météo…';
+    else if (meteoEtat.meteo) {
+      var j = meteoEtat.meteo.jours.filter(function (x) { return x.date === aujourdhuiISO(); })[0];
+      var nuitMin = Math.min.apply(null, meteoEtat.meteo.jours.filter(function (x) { return x.date >= aujourdhuiISO(); }).slice(0, 5).map(function (x) { return x.tmin; }));
+      txt = (j ? 'Aujourd’hui ' + Math.round(j.tmin) + ' / ' + Math.round(j.tmax) + ' °C' + (j.pluie >= 0.5 ? ', pluie ' + Math.round(j.pluie) + ' mm' : '') + ' · ' : '') +
+        'nuit la plus froide des 5 jours : ' + Math.round(nuitMin) + ' °C' + (meteoEtat.message ? '<br><em>' + esc(meteoEtat.message) + '</em>' : '');
+    } else txt = '<strong>' + esc(meteoEtat.message || 'Météo indisponible.') + '</strong> <button class="lien" data-action="recharger-meteo">Réessayer</button>';
+    return '<div class="meteo ' + (meteoEtat.meteo ? '' : 'meteo-ko') + '" data-test="meteo">' + txt + '</div>';
+  }
+  function entete(titre, retour) {
+    var p = S.etat.profil;
+    return '<header class="entete">' + (retour ? '<a class="retour" href="' + retour + '">‹ Retour</a>' : '') +
+      '<h1>' + titre + '</h1>' + (p && p.commune ? '<p class="lieu">' + esc(p.commune) + ' · climat ' + esc(M.zone(zoneId()).nom.toLowerCase()) + '</p>' : '') + '</header>';
+  }
+
+  /* ---------- Calculs agrégés ---------- */
+  function etatArrosage(e) {
+    return M.arrosage(e, S.actives(e.id), S.arrosagesDe(e.id), S.reportsDe(e.id), meteo(), zoneId(), maintenant());
+  }
+  function suiviDe(p) { return M.suivi(p, zoneId(), maintenant(), meteo()); }
+
+  /* ---------- Écran : Cette semaine ---------- */
+  function ecranAccueil() {
+    var h = entete('Cette semaine');
+    h += bandeauMeteo();
+    if (!S.etat.profil || !S.etat.profil.commune) {
+      h += '<section class="carte accent"><h2>Bienvenue 🌱</h2><p>Indique ta commune et décris tes bacs ou parcelles : l’app adaptera le calendrier à ton climat et à la météo.</p><a class="bouton" href="#/potager">Configurer mon potager</a></section>';
+    }
+    h += '<div class="deux-entrees"><a class="grosse-entree" href="#/envie" data-test="envie">🌿 J’ai envie de planter…</a><a class="grosse-entree" href="#/suggestions" data-test="quoi-planter">📅 Quoi planter cette semaine ?</a></div>';
+
+    var aFaire = 0, blocs = '';
+    // Arrosage
+    var arro = S.etat.espaces.map(function (e) { return etatArrosage(e); }).filter(function (a) { return a.statut === 'a_verifier'; });
+    if (arro.length) {
+      aFaire += arro.length;
+      blocs += '<section class="carte"><h2>💧 Arrosage à vérifier</h2>' + arro.map(carteArrosage).join('') + '</section>';
+    }
+    // Suivi : gestes, étapes en retard, étapes à confirmer
+    var suivis = S.actives().map(function (p) { return { p: p, s: suiviDe(p) }; });
+    var aSurveiller = suivis.filter(function (x) {
+      var s = x.s;
+      return s.gestes.length || (s.prochaine && s.prochaine.etape !== 'recolte' && M.dates.jour(maintenant()) >= s.prochaine.du);
+    });
+    if (aSurveiller.length) {
+      aFaire += aSurveiller.length;
+      blocs += '<section class="carte"><h2>👀 À observer</h2>' + aSurveiller.map(function (x) {
+        var s = x.s, c = s.culture, t = '';
+        if (s.prochaine && s.prochaine.etape !== 'recolte' && M.dates.jour(maintenant()) >= s.prochaine.du) {
+          t += '<p>' + (s.prochaine.enRetard ? '⚠️ ' + esc(s.prochaine.titre) + ' : fenêtre dépassée (' + esc(s.prochaine.fenetre) + '), un contrôle simple t’attend.' : esc(s.prochaine.titre) + ' attendue ' + esc(s.prochaine.fenetre) + ' : confirme-la quand tu la vois.') + '</p>';
+        }
+        s.gestes.forEach(function (g) { t += '<p>✋ <strong>' + esc(g.titre) + '</strong> : ' + esc(g.consigne) + '</p>'; });
+        return '<a class="ligne" href="#/suivi/' + x.p.id + '"><strong>' + c.emoji + ' ' + esc(c.nom) + '</strong> <span class="petit">' + esc(nomEspace(x.p.espaceId)) + '</span>' + t + '</a>';
+      }).join('') + '</section>';
+    }
+    // Récolte
+    var recoltes = suivis.filter(function (x) { return x.s.statut === 'en_recolte' || (x.s.recolte && x.s.recolte.approche); });
+    if (recoltes.length) {
+      aFaire += recoltes.length;
+      blocs += '<section class="carte"><h2>🧺 Récolte proche</h2>' + recoltes.map(function (x) {
+        var s = x.s, c = s.culture;
+        var t = s.statut === 'en_recolte' ? 'Récolte en cours.' : 'Première récolte attendue ' + esc(s.recolte.fenetre) + '.';
+        return '<a class="ligne" href="#/suivi/' + x.p.id + '"><strong>' + c.emoji + ' ' + esc(c.nom) + '</strong> <span class="petit">' + esc(nomEspace(x.p.espaceId)) + '</span><p>' + t + '</p><p class="signe">Signe à observer : ' + esc(c.recolte.signe) + '</p></a>';
+      }).join('') + '</section>';
+    }
+    if (!aFaire) {
+      blocs += '<section class="carte calme" data-test="rien"><h2>Rien à faire aujourd’hui</h2><p>' + (S.actives().length ? 'Pas d’arrosage ni d’observation urgente. Profite du jardin !' : 'Aucune culture en cours pour l’instant.') + '</p></section>';
+    }
+    h += blocs;
+
+    // Quoi semer / planter cette semaine
+    var esp = S.etat.espaces;
+    var sug = M.suggestions(null, maintenant(), zoneId(), meteo(), []).filter(function (s) {
+      if (s.meilleur.niveau < 2) return false;
+      if (!esp.length) return true;
+      return esp.some(function (e) { return M.compatibilite(s.culture, e).ok; });
+    });
+    h += '<section class="carte"><h2>🌱 À semer ou planter cette semaine</h2>';
+    if (!sug.length) h += '<p>Pas de semis ni de plantation recommandés cette semaine' + (meteo() ? ' (saison ou météo défavorable)' : '') + '. Regarde le calendrier d’une culture pour la prochaine période.</p>';
+    else h += sug.slice(0, 8).map(function (s) {
+      return '<a class="ligne" href="#/culture/' + s.culture.id + '"><strong>' + s.culture.emoji + ' ' + esc(s.culture.nom) + '</strong> ' + badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p></a>';
+    }).join('');
+    h += '</section>';
+    return h;
+  }
+
+  function carteArrosage(a) {
+    var e = a.espace;
+    return '<div class="arrosage ' + a.statut + '" data-espace="' + e.id + '"><div><strong>' + esc(e.nom) + '</strong> <span class="petit">' + (e.pluie === 'abri' ? 'sous abri' : 'à ciel ouvert') + '</span></div>' +
+      '<p class="conseil-arrosage">' + esc(a.conseil) + '</p>' +
+      (a.raisons.length ? '<p class="petit">' + esc(capitale(a.raisons.join(' ; '))) + '</p>' : '') +
+      '<p class="petit dernier">' + esc(dernierArrosageTexte(a.dernierArrosage)) + '</p>' +
+      (a.statut === 'vide' ? '' : '<div class="actions"><button class="bouton" data-action="arroser" data-id="' + e.id + '">💧 J’ai arrosé</button>' +
+        (a.statut === 'a_verifier' ? '<button class="bouton secondaire" data-action="humide" data-id="' + e.id + '">Terre encore humide</button>' : '') + '</div>') +
+      '</div>';
+  }
+
+  /* ---------- Écran : J'ai envie de planter… ---------- */
+  function ecranEnvie() {
+    var h = entete('J’ai envie de planter…', '#/');
+    h += '<p class="intro">Choisis une culture pour voir quand la semer ou la planter chez toi.</p><div class="grille">';
+    M.cultures().forEach(function (c) {
+      var meilleur = M.gestesDe(c).map(function (g) { return M.conseilGeste(c, g, maintenant(), zoneId(), meteo()); }).reduce(function (a, b) { return b.niveau > a.niveau ? b : a; });
+      h += '<a class="tuile" href="#/culture/' + c.id + '" data-test="culture-' + c.id + '"><span class="emoji">' + c.emoji + '</span><span>' + esc(c.nom) + '</span><span class="pastille n' + meilleur.niveau + '" title="' + esc(meilleur.libelle) + '"></span></a>';
+    });
+    return h + '</div>' + legende();
+  }
+  function legende() {
+    return '<div class="legende"><span><i class="n0"></i>Attendre / hors saison</span><span><i class="n1"></i>Possible sous conditions</span><span><i class="n2"></i>Favorable</span><span><i class="n3"></i>Très favorable</span></div>';
+  }
+
+  /* ---------- Écran : fiche culture + calendrier ---------- */
+  function ecranCulture(id) {
+    var c = M.culture(id); if (!c) return ecranIntrouvable();
+    var h = entete(c.emoji + ' ' + esc(c.nom), '#/envie');
+    h += bandeauMeteo();
+    var modes = M.modesDe(c);
+    h += '<section class="carte"><h2>Cette semaine</h2>';
+    M.gestesDe(c).forEach(function (g) {
+      var cg = M.conseilGeste(c, g, maintenant(), zoneId(), meteo());
+      h += conseilBloc(cg);
+      if (g !== 'semis_abri' && meteo()) {
+        var jours = M.conseilParJour(c, g, maintenant(), zoneId(), meteo(), 7);
+        if (jours.length) h += '<div class="jours">' + jours.map(function (j) {
+          return '<span class="jour n' + j.niveau + '" title="' + esc(j.libelle + ' : ' + j.raison) + '"><b>' + ['di', 'lu', 'ma', 'me', 'je', 've', 'sa'][j.date.getDay()] + '</b>' + Math.round(j.tmin) + '°</span>';
+        }).join('') + '</div><p class="petit">Prochains jours (température de la nuit).</p>';
+      }
+    });
+    h += '<div class="actions">';
+    if (modes.indexOf('semis_place') >= 0 || modes.indexOf('semis_abri') >= 0) h += '<a class="bouton" data-test="jai-seme" href="#/demarrer/' + c.id + '/seme">🌱 J’ai semé</a>';
+    if (modes.indexOf('plant') >= 0) h += '<a class="bouton" data-test="jai-plante" href="#/demarrer/' + c.id + '/plante">🪴 ' + (c.demarrage.plantation.libelle ? 'J’ai planté (' + esc(c.demarrage.plantation.libelle.replace('Planter des ', '')) + ')' : 'J’ai planté') + '</a>';
+    h += '</div></section>';
+
+    h += '<section class="carte"><h2>Calendrier dans ton climat</h2><p class="petit">Année normale en climat ' + esc(M.zone(zoneId()).nom.toLowerCase()) + '. Le conseil du jour ci-dessus tient compte de la météo.</p>';
+    var an = maintenant().getFullYear(), auj = maintenant();
+    var indexAuj = auj.getMonth() * 3 + Math.min(2, Math.floor((auj.getDate() - 1) / 10));
+    h += '<div class="calendrier"><div class="mois-ligne"><span></span>' + 'JFMAMJJASOND'.split('').map(function (m) { return '<span>' + m + '</span>'; }).join('') + '</div>';
+    M.gestesDe(c).forEach(function (g) {
+      var cases = M.bandeauAnnuel(c, g, zoneId(), an);
+      h += '<div class="cal-ligne"><span class="cal-nom">' + esc(M.nomGeste(c, g)) + '</span><div class="cal-cases">' + cases.map(function (x, i) { return '<i class="n' + x.niveau + (i === indexAuj ? ' auj' : '') + '"></i>'; }).join('') + '</div></div>';
+    });
+    h += '</div>' + legende() + '</section>';
+
+    h += '<section class="carte"><h2>Comment démarrer</h2><ul>';
+    M.gestesDe(c).forEach(function (g) { h += '<li>' + esc(c.demarrage[g].comment) + '</li>'; });
+    h += '</ul></section>';
+    h += '<section class="carte"><h2>Repères</h2><ul>' +
+      '<li><strong>Soleil :</strong> ' + (c.soleil.indexOf('mi-ombre') >= 0 ? 'plein soleil ou mi-ombre' : 'plein soleil (6 h ou plus)') + '</li>' +
+      '<li><strong>Espacement :</strong> ' + c.espacement.plant + ' cm entre plants, ' + c.espacement.rang + ' cm entre rangs</li>' +
+      '<li><strong>En bac :</strong> ' + (c.bac.possible ? 'oui, ' + c.bac.profondeurMin + ' cm de terre minimum' : 'déconseillé') + '</li>' +
+      '<li><strong>Froid :</strong> ' + (c.froid.sensible ? 'craint le gel ; nuits au-dessus de ' + c.froid.nuitIdeale + ' °C idéales' : 'supporte des gelées jusqu’à ' + c.froid.gelTolere + ' °C environ') + '</li>' +
+      '<li><strong>Arrosage :</strong> ' + esc(c.arrosage.consigne) + '</li>' +
+      '<li><strong>Récolte :</strong> ' + esc(c.recolte.signe) + (c.recolte.multiple ? ' Récoltes successives' + (c.recolte.duree ? ' ' + esc(c.recolte.duree) : '') + '.' : '') + '</li>' +
+      '<li><strong>Variétés connues :</strong> ' + c.varietes.map(function (v) { return esc(v.nom) + (v.note ? ' (' + esc(v.note) + ')' : ''); }).join(', ') + '</li>' +
+      '</ul></section>';
+    return h;
+  }
+
+  /* ---------- Écran : Quoi planter cette semaine ? ---------- */
+  function ecranSuggestions(params) {
+    var h = entete('Quoi planter cette semaine ?', '#/');
+    h += bandeauMeteo();
+    var esp = S.etat.espaces;
+    if (!esp.length) {
+      return h + '<section class="carte accent"><p>Ajoute d’abord un bac ou une parcelle : je pourrai te dire ce qui y pousse bien et combien de plants y tiennent.</p><a class="bouton" href="#/espace/nouveau">Ajouter un espace</a></section>';
+    }
+    var idE = params.espace || esp[0].id, e = S.espace(idE) || esp[0];
+    h += '<label class="champ">Pour quel espace ?<select data-action="choisir-espace">' + esp.map(function (x) { return '<option value="' + x.id + '"' + (x.id === e.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>'; }).join('') + '</select></label>';
+    h += '<p class="petit">' + esc(descriptionEspace(e)) + '</p>';
+    var actives = S.actives(e.id);
+    var sug = M.suggestions(e, maintenant(), zoneId(), meteo(), actives);
+    var possibles = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau >= 1; });
+    var plusTard = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau === 0; });
+    var non = sug.filter(function (s) { return !s.compat.ok; });
+    h += '<section class="carte"><h2>Possible cette semaine</h2>';
+    if (!possibles.length) h += '<p>Rien de conseillé cette semaine pour cet espace.</p>';
+    h += possibles.map(function (s) { return carteSuggestion(s, e); }).join('') + '</section>';
+    if (plusTard.length) h += '<section class="carte"><h2>Plus tard dans la saison</h2>' + plusTard.map(function (s) {
+      return '<a class="ligne" href="#/culture/' + s.culture.id + '">' + s.culture.emoji + ' ' + esc(s.culture.nom) + ' <span class="petit">' + esc(capitale(s.meilleur.raison)) + '</span></a>';
+    }).join('') + '</section>';
+    if (non.length) h += '<section class="carte"><h2>Peu adapté à cet espace</h2>' + non.map(function (s) {
+      return '<p>' + s.culture.emoji + ' ' + esc(s.culture.nom) + ' <span class="petit">' + esc(s.compat.raisons.join(', ')) + '</span></p>';
+    }).join('') + '</section>';
+    return h;
+  }
+  function carteSuggestion(s, e) {
+    var c = s.culture, cap = s.capacite;
+    var capTxt = cap.libre >= 1 ? 'Place pour environ ' + cap.libre + ' ' + unite(cap.libre, c.unite) + (cap.libre < cap.total ? ' (sur ' + cap.total + ', le reste est occupé)' : '') : 'Espace déjà occupé : il faudra libérer de la place';
+    return '<div class="suggestion" data-test="sugg-' + c.id + '"><div class="titre-sugg"><strong>' + c.emoji + ' ' + esc(c.nom) + '</strong></div>' +
+      badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p>' +
+      '<p>👉 ' + esc(s.demarrage) + '</p><p class="petit">' + esc(capTxt) + (s.compat.notes.length ? ' · ' + esc(s.compat.notes.join(' · ')) : '') + '</p>' +
+      '<div class="actions"><a class="bouton secondaire" href="#/culture/' + c.id + '">Calendrier</a>' +
+      (s.meilleur.geste === 'plantation' ? '<a class="bouton" href="#/demarrer/' + c.id + '/plante?espace=' + e.id + '">J’ai planté</a>' : '<a class="bouton" href="#/demarrer/' + c.id + '/seme?espace=' + e.id + '">J’ai semé</a>') +
+      '</div></div>';
+  }
+  function descriptionEspace(e) {
+    var soleil = { plein: 'plein soleil', 'mi-ombre': 'mi-ombre', ombre: 'ombre' }[e.soleil] || '';
+    return (e.type === 'bac' ? 'Bac' : 'Pleine terre') + ' de ' + e.longueur + ' × ' + e.largeur + ' cm' + (e.type === 'bac' && e.profondeur ? ', ' + e.profondeur + ' cm de terre' : '') + ', ' + soleil + ', ' + (e.pluie === 'abri' ? 'sous abri (la pluie ne l’atteint pas)' : 'à ciel ouvert');
+  }
+
+  /* ---------- Écran : démarrer une culture ---------- */
+  function ecranDemarrer(cultureId, action, params) {
+    var c = M.culture(cultureId); if (!c) return ecranIntrouvable();
+    var modes = M.modesDe(c).filter(function (m) { return action === 'plante' ? m === 'plant' : m !== 'plant'; });
+    if (!modes.length) return entete(esc(c.nom), '#/culture/' + c.id) + '<p class="carte">Ce mode de démarrage ne s’applique pas à cette culture.</p>';
+    var h = entete((action === 'plante' ? 'J’ai planté : ' : 'J’ai semé : ') + c.emoji + ' ' + esc(c.nom), '#/culture/' + c.id);
+    var esp = S.etat.espaces;
+    if (!esp.length) return h + '<section class="carte accent"><p>Ajoute d’abord le bac ou la parcelle où se trouve cette culture.</p><a class="bouton" href="#/espace/nouveau?retour=' + encodeURIComponent(location.hash) + '">Ajouter un espace</a></section>';
+    var idE = params.espace || esp[0].id;
+    var e0 = S.espace(idE) || esp[0];
+    var cap = M.capacite(c, e0, S.actives(e0.id));
+    h += '<form class="carte" data-form="demarrer" data-culture="' + c.id + '">';
+    if (modes.length > 1) {
+      h += '<fieldset class="champ"><legend>Comment ?</legend>' + modes.map(function (m, i) {
+        return '<label class="radio"><input type="radio" name="mode" value="' + m + '"' + (i === 0 ? ' checked' : '') + '> ' + (m === 'semis_place' ? 'Dehors, directement en place' : 'Sous abri (godets à l’intérieur), à mettre en terre plus tard') + '</label>';
+      }).join('') + '</fieldset>';
+    } else h += '<input type="hidden" name="mode" value="' + modes[0] + '">';
+    h += '<label class="champ">Date ' + (action === 'plante' ? 'de mise en terre' : 'du semis') + '<input type="date" name="date" required value="' + aujourdhuiISO() + '" max="' + aujourdhuiISO() + '"></label>';
+    h += '<label class="champ">' + (modes.indexOf('semis_abri') >= 0 ? 'Bac ou parcelle (où la culture poussera)' : 'Bac ou parcelle') + '<select name="espace">' + esp.map(function (e) { return '<option value="' + e.id + '"' + (e.id === e0.id ? ' selected' : '') + '>' + esc(e.nom) + '</option>'; }).join('') + '</select></label>';
+    h += '<label class="champ">Variété (facultatif)<select name="variete"><option value="">Je ne sais pas / autre</option>' + c.varietes.map(function (v) { return '<option value="' + v.id + '">' + esc(v.nom) + '</option>'; }).join('') + '</select></label>';
+    h += '<label class="champ">Nombre de ' + esc(c.unite) + ' (environ)<input type="number" name="quantite" min="1" step="1" value="' + Math.max(1, cap.libre || 1) + '"></label>';
+    h += '<p class="petit">Place disponible estimée dans « ' + esc(e0.nom) + ' » : ' + cap.libre + ' ' + esc(unite(cap.libre, c.unite)) + '.</p>';
+    h += '<button class="bouton" type="submit" data-test="enregistrer">Enregistrer</button></form>';
+    return h;
+  }
+
+  /* ---------- Écran : suivi d'une culture ---------- */
+  function ecranSuivi(id) {
+    var p = S.plantation(id); if (!p) return ecranIntrouvable();
+    var s = suiviDe(p), c = s.culture, ch = s.chronologie;
+    var h = entete(c.emoji + ' ' + esc(c.nom), '#/potager');
+    var v = p.varieteId ? (c.varietes.filter(function (x) { return x.id === p.varieteId; })[0] || {}).nom : '';
+    h += '<p class="intro">' + esc(M.NOMS_MODES[p.mode]) + ' le <strong>' + esc(D.format(D.lire(p.date))) + '</strong> · ' + esc(nomEspace(p.espaceId)) + (v ? ' · ' + esc(v) : '') + (p.quantite ? ' · ' + p.quantite + ' ' + esc(c.unite) : '') +
+      ' <button class="lien" data-action="modifier-date" data-id="' + p.id + '">modifier</button></p>';
+    h += '<form class="carte cache" data-form="date-depart" data-id="' + p.id + '"><label class="champ">Date réelle<input type="date" name="date" value="' + p.date + '" max="' + aujourdhuiISO() + '"></label><button class="bouton" type="submit">Corriger la date</button></form>';
+
+    if (s.statut === 'terminee') {
+      h += '<section class="carte calme"><h2>Culture terminée</h2><p>Terminée le ' + esc(D.format(D.lire(p.terminee))) + (p.premiereRecolte ? ', première récolte le ' + esc(D.format(D.lire(p.premiereRecolte))) : '') + '.</p></section>';
+      h += blocEnsuite(p);
+    } else {
+      if (s.prochaine) {
+        var pr = s.prochaine;
+        h += '<section class="carte ' + (pr.enRetard ? 'alerte' : 'accent') + '" data-test="prochaine"><h2>Prochaine étape : ' + esc(pr.titre) + '</h2>' +
+          '<p>Attendue <strong data-test="fenetre">' + esc(pr.fenetre) + '</strong>.</p>' +
+          '<p><strong>Ce qui est normal maintenant :</strong> ' + esc(pr.normal) + '</p>' +
+          (pr.enRetard ? '<p data-test="controle"><strong>La fenêtre est dépassée. Contrôle simple :</strong> ' + esc(pr.controle) + '</p>' : '') +
+          (pr.conseilPlantation ? conseilBloc(pr.conseilPlantation) : '') +
+          (pr.etape !== 'recolte' ? formObservation(p, pr.etape, pr.bouton, true) : '') + '</section>';
+      }
+      if (s.gestes.length) h += '<section class="carte"><h2>Gestes utiles maintenant</h2>' + s.gestes.map(function (g) { return '<p>✋ <strong>' + esc(g.titre) + '</strong> : ' + esc(g.consigne) + '</p>'; }).join('') + '</section>';
+
+      if (s.statut === 'en_recolte') {
+        h += '<section class="carte accent" data-test="recolte"><h2>🧺 Récolte en cours</h2><p>Première récolte le ' + esc(D.format(D.lire(p.premiereRecolte))) + '. ' + esc(s.message) + '</p><p class="signe">Signe à observer : ' + esc(c.recolte.signe) + '</p>' +
+          '<div class="actions"><button class="bouton" data-action="terminer" data-id="' + p.id + '" data-test="terminer">Culture terminée</button></div></section>';
+      } else if (s.recolte) {
+        h += '<section class="carte' + (s.recolte.approche ? ' accent' : '') + '" data-test="recolte"><h2>🧺 Récolte</h2><p>Première récolte estimée <strong data-test="fenetre-recolte">' + esc(s.recolte.fenetre) + '</strong>' +
+          (p.varieteId ? ' (variété prise en compte)' : '') + '.</p>' +
+          (s.recolte.approche ? '<p class="signe"><strong>Signe à observer :</strong> ' + esc(c.recolte.signe) + '</p>' : '<p class="petit">Estimation recalée à chaque étape que tu confirmes.</p>') +
+          '<div class="actions">' + (c.recolte.multiple
+            ? '<button class="bouton" data-action="premiere-recolte" data-id="' + p.id + '" data-test="premiere-recolte">Première récolte</button><button class="bouton secondaire" data-action="terminer" data-id="' + p.id + '">Culture terminée</button>'
+            : '<button class="bouton" data-action="recolte-unique" data-id="' + p.id + '" data-test="recolte-unique">Récolté · culture terminée</button>') + '</div></section>';
+      }
+    }
+
+    // Chronologie
+    h += '<section class="carte"><h2>Parcours</h2><ol class="frise"><li class="fait"><strong>' + (p.mode === 'plant' ? 'Mise en terre' : 'Semis') + '</strong> · ' + esc(D.format(D.lire(p.date))) + '</li>';
+    ch.etapes.forEach(function (e) {
+      var obs = e.observe || (e.etape === 'recolte' && p.premiereRecolte);
+      h += '<li class="' + (obs ? 'fait' : e.statut) + '"><strong>' + esc(e.titre) + '</strong> · ' +
+        (obs ? 'observé le ' + esc(D.format(e.observe)) + (e.etape !== 'recolte' && !p.terminee ? ' <button class="lien" data-action="annuler-obs" data-id="' + p.id + '" data-etape="' + e.etape + '">annuler</button>' : '')
+          : (e.statut === 'passe' ? 'passé' : 'estimé ' + esc(D.fenetre(e.du, e.au)))) + '</li>';
+    });
+    h += '</ol>';
+    if (!p.terminee) {
+      var autres = M.etapesConfirmables(p).filter(function (et) { return !(p.observations || {})[et] && (!s.prochaine || et !== s.prochaine.etape); });
+      if (autres.length) h += '<details><summary>Confirmer une autre étape</summary>' + autres.map(function (et) { return formObservation(p, et, (window.ETAPES[et] || {}).bouton, false); }).join('') + '</details>';
+    }
+    h += '</section>';
+    h += '<section class="carte"><h2>Arrosage de ce bac</h2>' + (S.espace(p.espaceId) ? carteArrosage(etatArrosage(S.espace(p.espaceId))) : '') + '</section>';
+    h += '<p class="centre"><button class="lien danger" data-action="supprimer-plantation" data-id="' + p.id + '">Supprimer ce suivi</button></p>';
+    return h;
+  }
+  function formObservation(p, etape, bouton, principal) {
+    return '<form class="observation" data-form="observer" data-id="' + p.id + '" data-etape="' + etape + '"><button class="bouton' + (principal ? '' : ' secondaire') + '" type="submit" data-test="obs-' + etape + '">' + esc(bouton) + '</button><label class="petit">le <input type="date" name="date" value="' + aujourdhuiISO() + '" max="' + aujourdhuiISO() + '"></label></form>';
+  }
+  function blocEnsuite(p) {
+    var e = S.espace(p.espaceId); if (!e) return '';
+    var props = M.apresCulture(p.cultureId, e, maintenant(), zoneId(), meteo(), S.actives(e.id));
+    if (!props.length) return '<section class="carte"><h2>Et ensuite ?</h2><p>Rien de conseillé tout de suite dans « ' + esc(e.nom) + ' ». Un apport de compost et un paillage protégeront la terre en attendant.</p></section>';
+    return '<section class="carte accent" data-test="ensuite"><h2>« ' + esc(e.nom) + ' » se libère : et ensuite ?</h2>' + props.map(function (s) { return carteSuggestion(s, e); }).join('') + '</section>';
+  }
+
+  /* ---------- Écran : arrosage ---------- */
+  function ecranArrosage() {
+    var h = entete('Arrosage', '#/');
+    h += bandeauMeteo();
+    var esp = S.etat.espaces;
+    if (!esp.length) return h + '<section class="carte accent"><p>Ajoute tes bacs ou parcelles pour suivre l’arrosage.</p><a class="bouton" href="#/espace/nouveau">Ajouter un espace</a></section>';
+    h += '<form class="carte" data-form="arroser-plusieurs"><h2>J’ai arrosé plusieurs espaces</h2>' + esp.map(function (e) {
+      return '<label class="radio"><input type="checkbox" name="espaces" value="' + e.id + '"> ' + esc(e.nom) + '</label>';
+    }).join('') + '<button class="bouton" type="submit" data-test="arroser-selection">💧 J’ai arrosé la sélection</button></form>';
+    h += '<section class="carte"><h2>Chaque espace</h2>' + esp.map(function (e) { return carteArrosage(etatArrosage(e)); }).join('') + '</section>';
+    return h;
+  }
+
+  /* ---------- Écran : mon potager ---------- */
+  function ecranPotager() {
+    var p = S.etat.profil || {};
+    var h = entete('Mon potager');
+    h += '<section class="carte"><h2>Où est ton potager ?</h2>' +
+      (p.commune ? '<p>📍 <strong data-test="commune">' + esc(p.commune) + '</strong>' + (p.codePostal ? ' (' + esc(p.codePostal) + ')' : '') + (typeof p.altitude === 'number' ? ' · ' + Math.round(p.altitude) + ' m' : '') + '</p>' : '') +
+      '<form data-form="chercher-commune" class="ligne-form"><input name="q" placeholder="Commune ou code postal" aria-label="Commune ou code postal" required><button class="bouton" type="submit">Chercher</button></form><div id="resultats-commune"></div>' +
+      '<label class="champ">Climat <select data-action="choisir-zone">' + Object.keys(window.CLIMATS.zones).map(function (k) {
+        var z = window.CLIMATS.zones[k]; return '<option value="' + k + '"' + (zoneId() === k ? ' selected' : '') + '>' + esc(z.nom) + ' — ' + esc(z.description) + '</option>';
+      }).join('') + '</select></label>' +
+      (p.zoneAuto && p.zone !== p.zoneAuto ? '<p class="petit">Détecté automatiquement : ' + esc(M.zone(p.zoneAuto).nom) + '. Tu l’as modifié.</p>' : '<p class="petit">Déduit de ta commune ; modifie-le si ton jardin est plus chaud ou plus froid que la moyenne.</p>') +
+      '</section>';
+    h += '<section class="carte"><h2>Mes bacs et parcelles</h2>';
+    if (!S.etat.espaces.length) h += '<p>Aucun espace pour l’instant.</p>';
+    h += S.etat.espaces.map(function (e) {
+      var n = S.actives(e.id).length;
+      return '<a class="ligne" href="#/espace/' + e.id + '"><strong>' + (e.type === 'bac' ? '🪴 ' : '🟫 ') + esc(e.nom) + '</strong><p class="petit">' + esc(descriptionEspace(e)) + '</p><p class="petit">' + (n ? n + ' culture' + (n > 1 ? 's' : '') + ' en cours' : 'libre') + '</p></a>';
+    }).join('');
+    h += '<a class="bouton" href="#/espace/nouveau" data-test="ajouter-espace">+ Ajouter un bac ou une parcelle</a></section>';
+    var actives = S.actives();
+    h += '<section class="carte"><h2>Cultures en cours</h2>' + (actives.length ? actives.map(function (pl) {
+      var s = suiviDe(pl), c = s.culture;
+      var t = s.statut === 'en_recolte' ? 'récolte en cours' : s.prochaine ? s.prochaine.titre.toLowerCase() + ' ' + s.prochaine.fenetre : '';
+      return '<a class="ligne" href="#/suivi/' + pl.id + '">' + c.emoji + ' <strong>' + esc(c.nom) + '</strong> <span class="petit">' + esc(nomEspace(pl.espaceId)) + ' · ' + esc(t) + '</span></a>';
+    }).join('') : '<p>Aucune. Va dans « J’ai envie de planter… » pour commencer.</p>') + '</section>';
+    var finies = S.etat.plantations.filter(function (x) { return x.terminee; });
+    if (finies.length) h += '<details class="carte"><summary>Cultures terminées (' + finies.length + ')</summary>' + finies.map(function (pl) { var c = M.culture(pl.cultureId); return '<a class="ligne" href="#/suivi/' + pl.id + '">' + c.emoji + ' ' + esc(c.nom) + ' <span class="petit">' + esc(nomEspace(pl.espaceId)) + '</span></a>'; }).join('') + '</details>';
+    h += '<p class="centre"><button class="lien danger" data-action="tout-effacer">Effacer toutes mes données</button></p>';
+    return h;
+  }
+
+  function ecranEspaceForm(id, params) {
+    var e = id ? S.espace(id) : null;
+    var v = e || { nom: '', type: 'bac', longueur: 100, largeur: 40, profondeur: 30, soleil: 'plein', pluie: 'ciel_ouvert' };
+    var h = entete(e ? 'Modifier « ' + esc(e.nom) + ' »' : 'Nouvel espace', e ? '#/espace/' + e.id : '#/potager');
+    h += '<form class="carte" data-form="espace"' + (e ? ' data-id="' + e.id + '"' : '') + (params.retour ? ' data-retour="' + esc(params.retour) + '"' : '') + '>' +
+      '<label class="champ">Nom<input name="nom" required maxlength="40" placeholder="Ex. Bac balcon" value="' + esc(v.nom) + '"></label>' +
+      '<fieldset class="champ"><legend>Type</legend><label class="radio"><input type="radio" name="type" value="bac"' + (v.type === 'bac' ? ' checked' : '') + '> Bac / jardinière</label><label class="radio"><input type="radio" name="type" value="pleine_terre"' + (v.type === 'pleine_terre' ? ' checked' : '') + '> Pleine terre</label></fieldset>' +
+      '<div class="deux"><label class="champ">Longueur (cm)<input type="number" name="longueur" min="10" max="5000" required value="' + v.longueur + '"></label><label class="champ">Largeur (cm)<input type="number" name="largeur" min="10" max="5000" required value="' + v.largeur + '"></label></div>' +
+      '<label class="champ">Profondeur de terre (cm, pour un bac)<input type="number" name="profondeur" min="5" max="200" value="' + (v.profondeur || '') + '"></label>' +
+      '<fieldset class="champ"><legend>Ensoleillement</legend>' +
+      [['plein', 'Plein soleil (6 h ou plus)'], ['mi-ombre', 'Mi-ombre (3 à 6 h)'], ['ombre', 'Ombre (moins de 3 h)']].map(function (o) { return '<label class="radio"><input type="radio" name="soleil" value="' + o[0] + '"' + (v.soleil === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>'; }).join('') + '</fieldset>' +
+      '<fieldset class="champ"><legend>Pluie</legend><label class="radio"><input type="radio" name="pluie" value="ciel_ouvert"' + (v.pluie !== 'abri' ? ' checked' : '') + '> À ciel ouvert (reçoit la pluie)</label><label class="radio"><input type="radio" name="pluie" value="abri"' + (v.pluie === 'abri' ? ' checked' : '') + '> Sous abri (avancée de toit, serre, véranda)</label></fieldset>' +
+      '<button class="bouton" type="submit" data-test="enregistrer-espace">Enregistrer</button></form>';
+    return h;
+  }
+
+  function ecranEspace(id) {
+    var e = S.espace(id); if (!e) return ecranIntrouvable();
+    var h = entete(esc(e.nom), '#/potager');
+    h += '<p class="intro">' + esc(descriptionEspace(e)) + ' · <a href="#/espace/' + e.id + '/modifier">modifier</a></p>';
+    h += '<section class="carte"><h2>Arrosage</h2>' + carteArrosage(etatArrosage(e)) + '</section>';
+    var act = S.actives(e.id);
+    h += '<section class="carte"><h2>Cultures en cours</h2>' + (act.length ? act.map(function (pl) {
+      var c = M.culture(pl.cultureId); return '<a class="ligne" href="#/suivi/' + pl.id + '">' + c.emoji + ' ' + esc(c.nom) + ' <span class="petit">' + (pl.quantite || '') + ' ' + esc(c.unite) + '</span></a>';
+    }).join('') : '<p>Libre.</p>') + '<a class="bouton secondaire" href="#/suggestions?espace=' + e.id + '">Quoi planter ici ?</a></section>';
+    h += '<p class="centre"><button class="lien danger" data-action="supprimer-espace" data-id="' + e.id + '">Supprimer cet espace</button></p>';
+    return h;
+  }
+
+  function ecranIntrouvable() { return entete('Page introuvable', '#/') + '<p class="carte">Cet élément n’existe plus.</p>'; }
+
+  /* ---------- Routeur ---------- */
+  function analyser() {
+    var brut = (route || '#/').slice(1), q = {}, i = brut.indexOf('?');
+    if (i >= 0) { brut.slice(i + 1).split('&').forEach(function (kv) { var p = kv.split('='); q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); brut = brut.slice(0, i); }
+    return { parties: brut.split('/').filter(Boolean), q: q };
+  }
+  function rendre() {
+    var r = analyser(), p = r.parties, h, onglet = 'accueil';
+    if (!p.length) h = ecranAccueil();
+    else if (p[0] === 'envie') { h = ecranEnvie(); onglet = 'planter'; }
+    else if (p[0] === 'culture') { h = ecranCulture(p[1]); onglet = 'planter'; }
+    else if (p[0] === 'suggestions') { h = ecranSuggestions(r.q); onglet = 'planter'; }
+    else if (p[0] === 'demarrer') { h = ecranDemarrer(p[1], p[2], r.q); onglet = 'planter'; }
+    else if (p[0] === 'suivi') { h = ecranSuivi(p[1]); onglet = 'potager'; }
+    else if (p[0] === 'arrosage') { h = ecranArrosage(); onglet = 'arrosage'; }
+    else if (p[0] === 'potager') { h = ecranPotager(); onglet = 'potager'; }
+    else if (p[0] === 'espace' && p[1] === 'nouveau') { h = ecranEspaceForm(null, r.q); onglet = 'potager'; }
+    else if (p[0] === 'espace' && p[2] === 'modifier') { h = ecranEspaceForm(p[1], r.q); onglet = 'potager'; }
+    else if (p[0] === 'espace') { h = ecranEspace(p[1]); onglet = 'potager'; }
+    else h = ecranIntrouvable();
+    app.innerHTML = h;
+    document.querySelectorAll('.nav a').forEach(function (a) { a.classList.toggle('actif', a.getAttribute('data-onglet') === onglet); });
+  }
+
+  /* ---------- Actions ---------- */
+  function flash(msg) {
+    var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('visible');
+    clearTimeout(flash.t); flash.t = setTimeout(function () { t.classList.remove('visible'); }, 2500);
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-action]'); if (!b || b.tagName === 'SELECT') return;
+    var a = b.getAttribute('data-action'), id = b.getAttribute('data-id');
+    if (a === 'arroser') { S.arroser([id]); flash('Arrosage noté pour « ' + nomEspace(id) + ' » à ' + heure(new Date())); rendre(); }
+    else if (a === 'humide') { S.terreHumide(id); flash('Noté : vérification reportée'); rendre(); }
+    else if (a === 'premiere-recolte') { S.modifierPlantation(id, { premiereRecolte: aujourdhuiISO() }); flash('Bravo, première récolte notée !'); rendre(); }
+    else if (a === 'recolte-unique') { S.modifierPlantation(id, { premiereRecolte: aujourdhuiISO(), terminee: aujourdhuiISO() }); flash('Récolte notée, l’espace est libéré'); rendre(); window.scrollTo(0, 0); }
+    else if (a === 'terminer') { confirmer(b, function () { S.modifierPlantation(id, { terminee: aujourdhuiISO() }); flash('Culture terminée : l’espace est libéré'); rendre(); window.scrollTo(0, 0); }); }
+    else if (a === 'annuler-obs') { S.annulerObservation(id, b.getAttribute('data-etape')); rendre(); }
+    else if (a === 'modifier-date') { var f = document.querySelector('[data-form="date-depart"]'); if (f) f.classList.toggle('cache'); }
+    else if (a === 'supprimer-plantation') { confirmer(b, function () { S.supprimerPlantation(id); aller('#/potager'); }); }
+    else if (a === 'supprimer-espace') { confirmer(b, function () { S.supprimerEspace(id); aller('#/potager'); }); }
+    else if (a === 'tout-effacer') { confirmer(b, function () { S.toutEffacer(); aller('#/'); }); }
+    else if (a === 'recharger-meteo') { chargerMeteo(true); }
+    else if (a === 'choisir-commune') {
+      var c = JSON.parse(b.getAttribute('data-commune'));
+      choisirCommune(c);
+    }
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.matches('[data-action="choisir-espace"]')) aller('#/suggestions?espace=' + t.value);
+    else if (t.matches('[data-action="choisir-zone"]')) { S.definirProfil({ zone: t.value }); flash('Climat mis à jour'); rendre(); }
+    else if (t.matches('[data-form="demarrer"] select[name="espace"]')) {
+      var f = t.form, c = M.culture(f.getAttribute('data-culture')), e = S.espace(t.value), cap = M.capacite(c, e, S.actives(e.id));
+      f.querySelector('input[name="quantite"]').value = Math.max(1, cap.libre || 1);
+      f.querySelector('p.petit').textContent = 'Place disponible estimée dans « ' + e.nom + ' » : ' + cap.libre + ' ' + unite(cap.libre, c.unite) + '.';
+    }
+  });
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target, type = f.getAttribute('data-form'); if (!type) return;
+    ev.preventDefault();
+    var fd = new FormData(f);
+    if (type === 'demarrer') {
+      var p = S.ajouterPlantation({ cultureId: f.getAttribute('data-culture'), mode: fd.get('mode'), date: fd.get('date') || aujourdhuiISO(), espaceId: fd.get('espace'), varieteId: fd.get('variete') || null, quantite: +fd.get('quantite') || null });
+      flash('Enregistré !'); aller('#/suivi/' + p.id);
+    } else if (type === 'observer') {
+      S.observer(f.getAttribute('data-id'), f.getAttribute('data-etape'), fd.get('date') || aujourdhuiISO());
+      flash('Observation notée : estimations recalées'); rendre();
+    } else if (type === 'date-depart') {
+      S.modifierPlantation(f.getAttribute('data-id'), { date: fd.get('date') }); flash('Date corrigée'); rendre();
+    } else if (type === 'arroser-plusieurs') {
+      var ids = fd.getAll('espaces');
+      if (!ids.length) { flash('Coche au moins un espace'); return; }
+      S.arroser(ids); flash('Arrosage noté pour ' + ids.length + ' espace' + (ids.length > 1 ? 's' : '')); rendre();
+    } else if (type === 'espace') {
+      var champs = { nom: fd.get('nom').trim(), type: fd.get('type'), longueur: +fd.get('longueur'), largeur: +fd.get('largeur'), profondeur: fd.get('type') === 'bac' ? (+fd.get('profondeur') || null) : null, soleil: fd.get('soleil'), pluie: fd.get('pluie') };
+      var idE = f.getAttribute('data-id');
+      if (idE) { S.modifierEspace(idE, champs); aller('#/espace/' + idE); }
+      else { var e = S.ajouterEspace(champs); var ret = f.getAttribute('data-retour'); aller(ret || '#/espace/' + e.id); }
+      flash('Espace enregistré');
+    } else if (type === 'chercher-commune') {
+      var zoneRes = document.getElementById('resultats-commune');
+      zoneRes.innerHTML = '<p class="petit">Recherche…</p>';
+      window.Meteo.chercherCommune(fd.get('q')).then(function (liste) {
+        if (!liste.length) { zoneRes.innerHTML = '<p class="petit">Aucune commune trouvée.</p>'; return; }
+        zoneRes.innerHTML = liste.map(function (c) { return '<button type="button" class="ligne choix" data-action="choisir-commune" data-commune="' + esc(JSON.stringify(c)) + '">' + esc(c.nom) + ' <span class="petit">' + esc(c.codePostal || '') + ' ' + esc(c.departement || '') + '</span></button>'; }).join('');
+      }).catch(function () {
+        var dep = window.DEPARTEMENTS && window.DEPARTEMENTS.depuisCodePostal(fd.get('q'));
+        if (dep) {
+          S.definirProfil({ commune: 'Code postal ' + fd.get('q').trim(), codePostal: fd.get('q').trim(), lat: null, lon: null, altitude: null, zone: dep.zone, zoneAuto: dep.zone });
+          flash('Climat déduit du département ' + dep.departement);
+          rendre();
+        } else {
+          zoneRes.innerHTML = '<p class="petit">Recherche de commune impossible ici. Tape plutôt ton code postal (5 chiffres) : le climat sera déduit du département. Tu peux aussi le choisir ci-dessous.</p>';
+        }
+      });
+    }
+  });
+
+  function choisirCommune(c) {
+    var fin = function (alt) {
+      var z = window.CLIMATS.detecter(c.lat, c.lon, alt);
+      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z });
+      flash('Commune enregistrée : climat ' + M.zone(z).nom.toLowerCase());
+      chargerMeteo(true);
+    };
+    if (typeof c.altitude === 'number') fin(c.altitude);
+    else window.Meteo.altitude(c.lat, c.lon).then(fin);
+  }
+
+  function chargerMeteo(forcer) {
+    var p = S.etat.profil;
+    if (!p || typeof p.lat !== 'number') { meteoEtat = { etat: 'aucune', meteo: null, message: '' }; rendre(); return; }
+    meteoEtat = { etat: 'chargement', meteo: meteoEtat.meteo, message: '' }; rendre();
+    window.Meteo.prevision(p.lat, p.lon, forcer).then(function (r) { meteoEtat = r; rendre(); });
+  }
+
+  window.addEventListener('hashchange', function () { if (/^#\//.test(location.hash) && location.hash !== route) { route = location.hash; rendre(); window.scrollTo(0, 0); } });
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest('a[href^="#/"]');
+    if (!a || ev.defaultPrevented || ev.metaKey || ev.ctrlKey) return;
+    ev.preventDefault(); aller(a.getAttribute('href'));
+  }, true);
+  S.surChargement(function () { rendre(); chargerMeteo(false); });
+  // Les conseils d'arrosage dépendent de l'heure : on rafraîchit l'écran régulièrement.
+  setInterval(function () { if (!document.querySelector('input:focus, select:focus')) rendre(); }, 10 * 60 * 1000);
+  rendre();
+  chargerMeteo(false);
+})();
+
+</script>
