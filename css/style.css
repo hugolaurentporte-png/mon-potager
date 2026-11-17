@@ -4,7 +4,7 @@
   --accent-fond: #f0fdf4; --accent-bord: #86efac; --calme: #f8faf5; --signe: #fefce8;
   --meteo: #eef6ff; --meteo-bord: #cfe3fb; --meteo-ko: #fff7ed; --meteo-ko-bord: #fed7aa; --retard: #9a3412; --danger: #b91c1c;
   --n0: #e5e7eb; --n0t: #374151; --n1: #fde68a; --n1t: #713f12; --n2: #bbf7d0; --n2t: #14532d; --n3: #15803d; --n3t: #ffffff;
-  --alerte: #fff4e5; --alerte-bord: #f59e0b; --toast: #1f2a1f; --toast-t: #ffffff; --marque: #111111; --froid: #1d4ed8;
+  --alerte: #fff4e5; --alerte-bord: #f59e0b; --toast: #1f2a1f; --toast-t: #ffffff; --marque: #111111; --froid: #1d4ed8; --s-pluie: #1d4ed8; --s-evap: #c2410c;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
@@ -12,14 +12,14 @@
   --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
   --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
   --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
-  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; color-scheme: dark; } }
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; --s-pluie: #3b82f6; --s-evap: #ea580c; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
   --vert: #4ade80; --vert-2: #a3d977; --sur-vert: #0c1a0f; --champ: #151b15; --champ-bord: #3a463a;
   --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
   --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
   --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
-  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; color-scheme: dark; }
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; --s-pluie: #3b82f6; --s-evap: #ea580c; color-scheme: dark; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--texte); padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
@@ -145,3 +145,38 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .heure.gel { background: var(--meteo); }
 .hc { font-size: 1.15rem; text-align: center; } .hu, .hv { color: var(--doux); }
 .detail-alerte { margin: 2px 0; }
+
+.graphe { position: relative; margin: 8px 0; touch-action: pan-y; }
+.svg-graphe { width: 100%; height: auto; display: block; overflow: visible; }
+.svg-graphe .grille { stroke: var(--bord); stroke-width: 1; }
+.svg-graphe .axe { fill: var(--doux); font-size: 10px; font-variant-numeric: tabular-nums; }
+.svg-graphe .etiquette { fill: var(--texte); font-size: 11px; font-weight: 600; }
+.svg-graphe .trait-temp { fill: none; stroke: var(--s-evap); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.svg-graphe .point-temp { fill: var(--s-evap); stroke: var(--carte); stroke-width: 2; }
+.svg-graphe .ligne-gel { stroke: var(--froid); stroke-width: 1; stroke-dasharray: 4 3; }
+.svg-graphe .gel-txt { fill: var(--froid); }
+.svg-graphe .maintenant { stroke: var(--doux); stroke-width: 1; stroke-dasharray: 2 3; }
+.svg-graphe .barre-pluie { fill: var(--s-pluie); }
+.svg-graphe .trait-evap { fill: none; stroke: var(--s-evap); stroke-width: 2; stroke-linejoin: round; }
+.svg-graphe .cible { fill: transparent; cursor: pointer; }
+.svg-graphe .cible.actif, .svg-graphe .cible:hover { fill: var(--texte); fill-opacity: .07; }
+.bulle { position: absolute; top: -6px; transform: translateY(-100%); background: var(--toast); color: var(--toast-t); font-size: .8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 2; }
+.legende-graphe { display: flex; gap: 14px; font-size: .85rem; color: var(--doux); margin: 8px 0 0; }
+.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.pastille.pluie { background: var(--s-pluie); } .pastille.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
+.quarts { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 64px; align-items: end; margin: 8px 0 2px; }
+.quart { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid var(--bord); position: relative; }
+.quart i { display: block; background: var(--s-pluie); border-radius: 3px 3px 0 0; }
+.quart span { position: absolute; bottom: -18px; left: 0; font-size: .72rem; color: var(--doux); }
+.quarts + .petit { margin-top: 22px; }
+.creneau { border-top: 1px solid var(--bord); padding: 6px 0; } .creneau:first-of-type { border-top: 0; }
+.creneau p { margin: 2px 0; } .creneau-quand { font-weight: 600; color: var(--vert); } .creneau.aucun .creneau-quand { color: var(--doux); font-weight: 400; }
+.soleil-liste { display: grid; gap: 4px; }
+.soleil-jour { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) 3rem 3.4rem; gap: 8px; align-items: center; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.soleil-barre { height: 8px; background: var(--n0); border-radius: 4px; overflow: hidden; }
+.soleil-barre i { display: block; height: 100%; background: var(--n1); border-radius: 4px; }
+.uv { font-size: .8rem; text-align: center; border-radius: 6px; padding: 1px 4px; }
+.uv-modere { background: var(--n1); color: var(--n1t); } .uv-fort, .uv-tres-fort { background: var(--alerte); color: var(--retard); border: 1px solid var(--alerte-bord); }
+.soif-chiffres { font-size: 1rem; font-weight: 600; }
+.tableau { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.tableau th, .tableau td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--bord); }

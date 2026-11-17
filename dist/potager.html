@@ -7,7 +7,7 @@
   --accent-fond: #f0fdf4; --accent-bord: #86efac; --calme: #f8faf5; --signe: #fefce8;
   --meteo: #eef6ff; --meteo-bord: #cfe3fb; --meteo-ko: #fff7ed; --meteo-ko-bord: #fed7aa; --retard: #9a3412; --danger: #b91c1c;
   --n0: #e5e7eb; --n0t: #374151; --n1: #fde68a; --n1t: #713f12; --n2: #bbf7d0; --n2t: #14532d; --n3: #15803d; --n3t: #ffffff;
-  --alerte: #fff4e5; --alerte-bord: #f59e0b; --toast: #1f2a1f; --toast-t: #ffffff; --marque: #111111; --froid: #1d4ed8;
+  --alerte: #fff4e5; --alerte-bord: #f59e0b; --toast: #1f2a1f; --toast-t: #ffffff; --marque: #111111; --froid: #1d4ed8; --s-pluie: #1d4ed8; --s-evap: #c2410c;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
@@ -15,14 +15,14 @@
   --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
   --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
   --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
-  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; color-scheme: dark; } }
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; --s-pluie: #3b82f6; --s-evap: #ea580c; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --fond: #121712; --carte: #1b221b; --texte: #e6ece3; --doux: #a3b19f; --bord: #2c362c;
   --vert: #4ade80; --vert-2: #a3d977; --sur-vert: #0c1a0f; --champ: #151b15; --champ-bord: #3a463a;
   --accent-fond: #15291b; --accent-bord: #2f6b3f; --calme: #182018; --signe: #2a2814;
   --meteo: #14212f; --meteo-bord: #23384f; --meteo-ko: #2b1e10; --meteo-ko-bord: #5c3a14; --retard: #fdba74; --danger: #f87171;
   --n0: #374151; --n0t: #e5e7eb; --n1: #a16207; --n1t: #fff7d6; --n2: #166534; --n2t: #dcfce7; --n3: #4ade80; --n3t: #052e12;
-  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; color-scheme: dark; }
+  --alerte: #2b1e10; --alerte-bord: #b45309; --toast: #e6ece3; --toast-t: #121712; --marque: #ffffff; --froid: #93c5fd; --s-pluie: #3b82f6; --s-evap: #ea580c; color-scheme: dark; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--texte); padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
@@ -148,6 +148,41 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .heure.gel { background: var(--meteo); }
 .hc { font-size: 1.15rem; text-align: center; } .hu, .hv { color: var(--doux); }
 .detail-alerte { margin: 2px 0; }
+
+.graphe { position: relative; margin: 8px 0; touch-action: pan-y; }
+.svg-graphe { width: 100%; height: auto; display: block; overflow: visible; }
+.svg-graphe .grille { stroke: var(--bord); stroke-width: 1; }
+.svg-graphe .axe { fill: var(--doux); font-size: 10px; font-variant-numeric: tabular-nums; }
+.svg-graphe .etiquette { fill: var(--texte); font-size: 11px; font-weight: 600; }
+.svg-graphe .trait-temp { fill: none; stroke: var(--s-evap); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.svg-graphe .point-temp { fill: var(--s-evap); stroke: var(--carte); stroke-width: 2; }
+.svg-graphe .ligne-gel { stroke: var(--froid); stroke-width: 1; stroke-dasharray: 4 3; }
+.svg-graphe .gel-txt { fill: var(--froid); }
+.svg-graphe .maintenant { stroke: var(--doux); stroke-width: 1; stroke-dasharray: 2 3; }
+.svg-graphe .barre-pluie { fill: var(--s-pluie); }
+.svg-graphe .trait-evap { fill: none; stroke: var(--s-evap); stroke-width: 2; stroke-linejoin: round; }
+.svg-graphe .cible { fill: transparent; cursor: pointer; }
+.svg-graphe .cible.actif, .svg-graphe .cible:hover { fill: var(--texte); fill-opacity: .07; }
+.bulle { position: absolute; top: -6px; transform: translateY(-100%); background: var(--toast); color: var(--toast-t); font-size: .8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 2; }
+.legende-graphe { display: flex; gap: 14px; font-size: .85rem; color: var(--doux); margin: 8px 0 0; }
+.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.pastille.pluie { background: var(--s-pluie); } .pastille.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
+.quarts { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 64px; align-items: end; margin: 8px 0 2px; }
+.quart { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid var(--bord); position: relative; }
+.quart i { display: block; background: var(--s-pluie); border-radius: 3px 3px 0 0; }
+.quart span { position: absolute; bottom: -18px; left: 0; font-size: .72rem; color: var(--doux); }
+.quarts + .petit { margin-top: 22px; }
+.creneau { border-top: 1px solid var(--bord); padding: 6px 0; } .creneau:first-of-type { border-top: 0; }
+.creneau p { margin: 2px 0; } .creneau-quand { font-weight: 600; color: var(--vert); } .creneau.aucun .creneau-quand { color: var(--doux); font-weight: 400; }
+.soleil-liste { display: grid; gap: 4px; }
+.soleil-jour { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) 3rem 3.4rem; gap: 8px; align-items: center; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.soleil-barre { height: 8px; background: var(--n0); border-radius: 4px; overflow: hidden; }
+.soleil-barre i { display: block; height: 100%; background: var(--n1); border-radius: 4px; }
+.uv { font-size: .8rem; text-align: center; border-radius: 6px; padding: 1px 4px; }
+.uv-modere { background: var(--n1); color: var(--n1t); } .uv-fort, .uv-tres-fort { background: var(--alerte); color: var(--retard); border: 1px solid var(--alerte-bord); }
+.soif-chiffres { font-size: 1rem; font-weight: 600; }
+.tableau { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.tableau th, .tableau td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--bord); }
 </style>
 <main id="app" aria-live="polite"></main>
   <nav class="nav" aria-label="Navigation principale">
@@ -1947,6 +1982,155 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     return best.length >= 3 ? { debut: lireDate(best[0].date), jours: best.length, tmax: Math.max.apply(null, best.map(function (j) { return j.tmax; })), nuitsChaudes: best.filter(function (j) { return j.tmin >= 20; }).length } : null;
   }
 
+  function nomJourCourt(d, maintenant) {
+    var n = ecartJours(maintenant, d);
+    return n === 0 ? 'aujourd’hui' : n === 1 ? 'demain' : JOURS[d.getDay()] + ' ' + d.getDate();
+  }
+  function hMin(d) { var m = d.getMinutes(); return d.getHours() + ' h' + (m ? ' ' + (m < 10 ? '0' : '') + m : ''); }
+
+  /* ---------- Température de la terre ---------- */
+  // Température minimale de la terre (à 6 cm) pour semer dehors ou planter. Valeurs indicatives.
+  REGLES.tempSol = {
+    semis_place: { radis: 8, laitue: 8, mache: 5, epinard: 5, carotte: 8, betterave: 10, oignon: 8, 'haricot-nain': 12, courgette: 14, concombre: 15 },
+    plantation: { tomate: 12, 'tomate-cerise': 12, poivron: 15, courgette: 14, concombre: 15 }
+  };
+  function solParJour(meteo) {
+    var j = {};
+    (meteo && meteo.heures || []).forEach(function (h) { if (h.sol == null) return; var k = h.t.slice(0, 10); (j[k] = j[k] || []).push(h.sol); });
+    var r = {}; Object.keys(j).forEach(function (k) { if (j[k].length >= 12) r[k] = j[k].reduce(function (a, b) { return a + b; }, 0) / j[k].length; });
+    return r;
+  }
+  /** Terre : température actuelle, tendance, et ce qu'on peut semer ou planter */
+  function temperatureSol(meteo, maintenant) {
+    var pj = solParJour(meteo), auj = isoDate(jourDe(maintenant));
+    if (pj[auj] == null) return null;
+    var maintenantH = (meteo.heures || []).filter(function (h) { return h.sol != null && dateHeure(h.t) <= maintenant; }).pop();
+    var futurs = Object.keys(pj).filter(function (k) { return k >= auj; }).sort();
+    var cultures = [];
+    ['semis_place', 'plantation'].forEach(function (geste) {
+      var t = REGLES.tempSol[geste];
+      Object.keys(t).forEach(function (id) {
+        var c = culture(id); if (!c) return;
+        var ok = pj[auj] >= t[id], date = null;
+        if (!ok) futurs.some(function (k) { if (pj[k] >= t[id]) { date = lireDate(k); return true; } return false; });
+        cultures.push({ culture: c, geste: geste, min: t[id], ok: ok, date: date });
+      });
+    });
+    var dernier = futurs[futurs.length - 1];
+    return { actuel: maintenantH ? maintenantH.sol : pj[auj], moyenne: pj[auj], tendance: pj[dernier] - pj[auj], jours: futurs.map(function (k) { return { date: k, moyenne: pj[k] }; }), cultures: cultures, gele: maintenantH ? maintenantH.sol <= 0 : pj[auj] <= 0 };
+  }
+
+  /* ---------- Bons créneaux pour les gestes ---------- */
+  REGLES.creneaux = {
+    traiter: { titre: 'Traiter (purin, bouillie, savon noir)', icone: '🧴', pourquoi: 'ni pluie pendant 6 h, ni vent, ni forte chaleur' },
+    repiquer: { titre: 'Repiquer ou planter', icone: '🌱', pourquoi: 'temps doux et couvert (ou fin de journée), pas de gel la nuit suivante' },
+    semer: { titre: 'Semer dehors', icone: '🫘', pourquoi: 'terre ni gelée ni détrempée, pas d’averse juste après' },
+    recolter: { titre: 'Récolter pour conserver', icone: '🧺', pourquoi: 'temps sec depuis la veille, légumes secs (meilleure conservation)' }
+  };
+  function creneaux(meteo, maintenant) {
+    if (!meteo || !meteo.heures) return [];
+    var debut = new Date(maintenant.getTime()); debut.setMinutes(0, 0, 0);
+    var tous = heuresEntre(meteo, new Date(debut.getTime() - 24 * 3600000), new Date(debut.getTime() + 8 * JOUR)).filter(function (h) { return h.temp != null; });
+    var i0 = 0; while (i0 < tous.length && tous[i0].date < debut) i0++;
+    var fin7 = new Date(debut.getTime() + 7 * JOUR);
+    function somme(a, b) { var s = 0; for (var k = Math.max(0, a); k < Math.min(tous.length, b); k++) s += tous[k].pluie || 0; return s; }
+    function minTemp(a, b) { var m = Infinity; for (var k = a; k < Math.min(tous.length, b); k++) m = Math.min(m, tous[k].temp); return m; }
+    var regles = {
+      traiter: function (h, i) { return i + 6 <= tous.length && somme(i, i + 6) < 0.2 && (h.vent == null || h.vent <= 15) && (h.rafales == null || h.rafales <= 35) && h.temp >= 8 && h.temp <= 25; },
+      repiquer: function (h, i) { var H = h.date.getHours(); return h.temp >= 8 && h.temp <= 24 && ((h.nuages != null && h.nuages >= 60) || H >= 17) && somme(i, i + 2) < 1 && (h.vent == null || h.vent <= 25) && minTemp(i, i + 16) > 1; },
+      semer: function (h, i) { return h.temp >= 6 && (h.sol == null || h.sol > 2) && somme(i - 24, i) < 15 && somme(i, i + 6) < 5 && (h.vent == null || h.vent <= 30); },
+      recolter: function (h, i) { var H = h.date.getHours(); return H >= 10 && somme(i - 18, i + 1) < 0.2 && h.temp >= 5 && h.temp <= 28; }
+    };
+    return Object.keys(regles).map(function (id) {
+      var run = null, best = null;
+      for (var i = i0; i < tous.length && tous[i].date < fin7; i++) {
+        var h = tous[i], H = h.date.getHours(), ok = H >= 7 && H < 21 && regles[id](h, i);
+        var memeJour = run && isoDate(run.fin) === isoDate(h.date);
+        if (ok && run && memeJour && h.date - run.fin === 3600000) run.fin = h.date;
+        else if (ok) run = { debut: h.date, fin: h.date };
+        else run = null;
+        if (run && (run.fin - run.debut) >= 3600000) { best = { debut: run.debut, fin: run.fin }; break; }
+      }
+      var R = REGLES.creneaux[id], r = { id: id, titre: R.titre, icone: R.icone, pourquoi: R.pourquoi };
+      if (best) {
+        // prolonge le créneau trouvé jusqu'à sa vraie fin
+        for (var k = 0; k < tous.length; k++) if (tous[k].date - best.fin === 3600000 && isoDate(tous[k].date) === isoDate(best.fin) && tous[k].date.getHours() < 21 && regles[id](tous[k], k)) best.fin = tous[k].date;
+        r.debut = best.debut; r.fin = new Date(best.fin.getTime() + 3600000);
+        r.texte = capitaliser(nomJourCourt(r.debut, maintenant)) + ' de ' + hMin(r.debut) + ' à ' + hMin(r.fin);
+      } else r.texte = 'Pas de bon créneau dans les 7 prochains jours';
+      return r;
+    });
+  }
+  function capitaliser(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  /* ---------- Pluie dans les 2 prochaines heures (quart d'heure par quart d'heure) ---------- */
+  function pluieProchaine(meteo, maintenant) {
+    if (!meteo || !meteo.quarts || !meteo.quarts.length) return null;
+    var qs = meteo.quarts.map(function (q) { return { date: dateHeure(q.t), pluie: q.pluie || 0 }; }).filter(function (q) { return q.date.getTime() + 15 * 60000 > maintenant.getTime(); }).slice(0, 8);
+    if (qs.length < 4) return null;
+    var seuil = 0.1, total = qs.reduce(function (a, q) { return a + q.pluie; }, 0);
+    var pluvieux = qs.filter(function (q) { return q.pluie >= seuil; });
+    var res = { quarts: qs, total: total }, finQ = function (q) { return new Date(q.date.getTime() + 15 * 60000); };
+    if (!pluvieux.length) res.texte = 'Pas de pluie prévue dans les 2 prochaines heures : tu as le temps d’aller au jardin.';
+    else if (qs[0].pluie >= seuil) {
+      var sec = qs.filter(function (q) { return q.pluie < seuil; })[0];
+      res.texte = sec ? 'Il pleut en ce moment, jusqu’à ' + hMin(sec.date) + ' environ (' + arrondi(total) + ' mm).' : 'Pluie pendant les 2 prochaines heures (' + arrondi(total) + ' mm).';
+    } else {
+      res.texte = 'Pluie à partir de ' + hMin(pluvieux[0].date) + ' (' + arrondi(total) + ' mm d’ici ' + hMin(finQ(qs[qs.length - 1])) + ').';
+    }
+    return res;
+  }
+
+  /* ---------- Le jardin a-t-il eu soif ? (30 derniers jours) ---------- */
+  function soif(passe, maintenant, nb) {
+    if (!passe || !passe.length) return null;
+    var auj = isoDate(jourDe(maintenant));
+    var js = passe.filter(function (j) { return j.date < auj && j.et0 != null; }).slice(-(nb || 30));
+    if (js.length < 10) return null;
+    var pluie = 0, et0 = 0; js.forEach(function (j) { pluie += j.pluie; et0 += j.et0; });
+    var sem = js.slice(-7), p7 = 0, e7 = 0; sem.forEach(function (j) { p7 += j.pluie; e7 += j.et0; });
+    var ratio = et0 > 0 ? pluie / et0 : 9, verdict, texte;
+    if (et0 < 15 && pluie >= et0) { verdict = 'humide'; texte = 'Période fraîche : la terre perd peu d’eau et la pluie a largement suffi. Les cultures en pleine terre n’ont pas eu soif ; seuls les bacs sous abri ont besoin de toi.'; }
+    else if (ratio >= 1.2) { verdict = 'humide'; texte = 'Il est tombé plus d’eau que la terre n’en a perdu : pas de soif en pleine terre. Attention aux limaces et aux maladies.'; }
+    else if (ratio >= 0.6) { verdict = 'equilibre'; texte = 'La pluie a compensé une bonne partie de l’évaporation. Les bacs et les cultures gourmandes ont pu manquer d’eau entre deux pluies.'; }
+    else { verdict = 'sec'; texte = 'Période sèche : la terre a perdu bien plus d’eau qu’elle n’en a reçu. Arrose en profondeur (moins souvent mais plus copieusement) et paille le sol.'; }
+    return { jours: js, pluie: pluie, et0: et0, ecart: pluie - et0, verdict: verdict, texte: texte, semaine: { pluie: p7, et0: e7 } };
+  }
+
+  /* ---------- Comparaison avec la normale ---------- */
+  function normaleDe(normales, iso) { return normales && normales[iso.slice(5)]; }
+  function comparaisonNormale(meteo, normales, maintenant) {
+    if (!meteo || !normales) return null;
+    var auj = isoDate(jourDe(maintenant)), js = (meteo.jours || []).filter(function (j) { return j.date >= auj; }).slice(0, 7);
+    var e = [], n = [];
+    js.forEach(function (j) { var x = normaleDe(normales, j.date); if (x) { e.push((j.tmin + j.tmax) / 2 - (x[0] + x[1]) / 2); n.push(x); } });
+    if (e.length < 4) return null;
+    var ecart = e.reduce(function (a, b) { return a + b; }, 0) / e.length;
+    var nTmin = n.reduce(function (a, x) { return a + x[0]; }, 0) / n.length, nTmax = n.reduce(function (a, x) { return a + x[1]; }, 0) / n.length;
+    var r = { ecart: ecart, normaleTmin: nTmin, normaleTmax: nTmax };
+    var a = Math.abs(Math.round(ecart * 10) / 10);
+    r.texte = a < 1 ? 'Les 7 prochains jours sont proches des normales de saison.' : 'Les 7 prochains jours seront ' + String(a).replace('.', ',') + ' °C plus ' + (ecart > 0 ? 'doux' : 'frais') + ' que d’habitude chez toi.';
+    if (ecart >= 3) r.conseil = 'Douceur inhabituelle : la végétation peut repartir trop tôt. Ne te fie pas à la douceur pour planter des légumes frileux, un retour du froid reste possible.';
+    else if (ecart <= -3) r.conseil = 'Fraîcheur inhabituelle : les levées et la croissance seront plus lentes que prévu ; les dates de récolte peuvent glisser de quelques jours.';
+    var p = meteo.passe, p30 = 0, n30 = 0, k = 0;
+    (p || []).filter(function (j) { return j.date < auj; }).slice(-30).forEach(function (j) { var x = normaleDe(normales, j.date); if (x) { p30 += j.pluie; n30 += x[2]; k++; } });
+    if (k >= 20 && n30 > 5) {
+      r.pluie30 = p30; r.normalePluie30 = n30;
+      var pc = Math.round(100 * p30 / n30);
+      r.textePluie = 'Pluie des 30 derniers jours : ' + Math.round(p30) + ' mm, soit ' + pc + ' % de la normale (' + Math.round(n30) + ' mm).';
+    }
+    return r;
+  }
+
+  /* ---------- Soleil et UV ---------- */
+  function niveauUV(uv) {
+    if (uv == null) return null;
+    if (uv < 3) return { niveau: 'faible', texte: 'UV faibles' };
+    if (uv < 6) return { niveau: 'modere', texte: 'UV modérés', conseil: 'Chapeau conseillé si tu jardines longtemps.' };
+    if (uv < 8) return { niveau: 'fort', texte: 'UV forts', conseil: 'Jardine plutôt avant 11 h ou après 17 h (chapeau, crème). Ombre les semis et les repiquages tout juste faits.' };
+    return { niveau: 'tres-fort', texte: 'UV très forts', conseil: 'Évite de jardiner entre 12 h et 16 h. Ombre les jeunes plants (voile, cagette) et arrose le soir.' };
+  }
+
   /**
    * Bilan d'eau d'un espace : réserve facilement utilisable (mm), consommation
    * = évapotranspiration (ET0, Open-Meteo) × coefficient de culture, recharge
@@ -2407,7 +2591,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
+    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, temperatureSol: temperatureSol, creneaux: creneaux, pluieProchaine: pluieProchaine, soif: soif, comparaisonNormale: comparaisonNormale, niveauUV: niveauUV, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
@@ -2424,8 +2608,9 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
  * En cas d'échec, l'app continue avec le calendrier climatique seul.
  */
 (function (racine) {
-  var CLE_CACHE = 'potager.meteo.v3';
-  var DUREE_FRAICHE = 3 * 3600 * 1000;   // on réutilise une prévision de moins de 3 h
+  var CLE_CACHE = 'potager.meteo.v4';
+  var CLE_NORMALES = 'potager.normales.v1';
+  var DUREE_FRAICHE = 30 * 60 * 1000;    // on réutilise une prévision de moins de 30 min (pluie au quart d'heure)
   var DUREE_MAX = 24 * 3600 * 1000;      // au-delà de 24 h, une prévision est périmée
 
   function avecDelai(url, ms) {
@@ -2468,7 +2653,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
   function fusionner(global, mf) {
     if (!mf) { global.modeles = { meteoFrance: false }; return global; }
     var joursMF = {};
-    ['hourly', 'daily'].forEach(function (bloc) {
+    ['hourly', 'daily', 'minutely_15'].forEach(function (bloc) {
       var g = global[bloc], m = mf[bloc]; if (!g || !m) return;
       var index = {}; (m.time || []).forEach(function (t, i) { index[t] = i; });
       Object.keys(g).forEach(function (k) {
@@ -2486,17 +2671,18 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
   }
 
   function normaliser(r) {
-    var jours = [], heures = [];
-    var d = r.daily || {}, h = r.hourly || {};
+    var jours = [], heures = [], quarts = [];
+    var d = r.daily || {}, h = r.hourly || {}, q = r.minutely_15 || {};
     (d.time || []).forEach(function (t, i) {
       var v = function (k) { return d[k] ? d[k][i] : null; };
-      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code'), et0: v('et0_fao_evapotranspiration') });
+      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code'), et0: v('et0_fao_evapotranspiration'), soleil: v('sunshine_duration') == null ? null : Math.round(v('sunshine_duration') / 360) / 10, jour: v('daylight_duration') == null ? null : Math.round(v('daylight_duration') / 360) / 10, uv: v('uv_index_max') });
     });
     (h.time || []).forEach(function (t, i) {
       var v = function (k) { return h[k] ? h[k][i] : null; };
-      heures.push({ t: t, pluie: v('precipitation') || 0, proba: v('precipitation_probability'), temp: v('temperature_2m'), code: v('weather_code'), vent: v('wind_speed_10m'), rafales: v('wind_gusts_10m'), humidite: v('relative_humidity_2m'), nuages: v('cloud_cover') });
+      heures.push({ t: t, pluie: v('precipitation') || 0, proba: v('precipitation_probability'), temp: v('temperature_2m'), code: v('weather_code'), vent: v('wind_speed_10m'), rafales: v('wind_gusts_10m'), humidite: v('relative_humidity_2m'), nuages: v('cloud_cover'), sol: v('soil_temperature_6cm') });
     });
-    return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures };
+    (q.time || []).forEach(function (t, i) { quarts.push({ t: t, pluie: q.precipitation ? q.precipitation[i] || 0 : 0 }); });
+    return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures, quarts: quarts };
   }
 
   function lireCache() { try { return JSON.parse(localStorage.getItem(CLE_CACHE) || 'null'); } catch (e) { return null; } }
@@ -2513,15 +2699,22 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
       return Promise.resolve({ meteo: cache.meteo, etat: 'ok' });
     }
     var base = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code,et0_fao_evapotranspiration' +
-      '&hourly=precipitation,precipitation_probability,temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,cloud_cover' +
+      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code,et0_fao_evapotranspiration,sunshine_duration,daylight_duration,uv_index_max' +
+      '&hourly=precipitation,precipitation_probability,temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,cloud_cover,soil_temperature_6cm' +
+      '&minutely_15=precipitation&forecast_minutely_15=12' +
       '&past_days=3&forecast_days=8&timezone=auto';
+    // 30 derniers jours : pluie tombée et évaporation (pour « le jardin a-t-il eu soif ? »)
+    var passe = avecDelai('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max&past_days=31&forecast_days=1&timezone=auto', 10000).then(function (r) {
+      var d = r.daily || {};
+      return (d.time || []).map(function (t, i) { return { date: t, pluie: d.precipitation_sum[i] || 0, et0: d.et0_fao_evapotranspiration[i], tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i] }; });
+    }).catch(function () { return null; });
     // Modèle Météo-France (AROME 1,3 km puis ARPEGE) pour les premiers jours, complété par le modèle global au-delà
     var mf = avecDelai(base + '&models=meteofrance_seamless', 10000).catch(function () { return null; });
-    return Promise.all([avecDelai(base), mf]).then(function (rs) {
+    return Promise.all([avecDelai(base), mf, passe]).then(function (rs) {
       var r = fusionner(rs[0], rs[1]);
       var m = normaliser(r);
       m.modeles = r.modeles;
+      m.passe = rs[2];
       ecrireCache({ cle: cle, date: maintenant, meteo: m });
       return { meteo: m, etat: 'ok' };
     }).catch(function () {
@@ -2550,7 +2743,40 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     }).catch(function () { return null; });
   }
 
-  racine.Meteo = { fusionner: fusionner, chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
+  /**
+   * Normales du lieu : moyenne sur 10 ans, jour par jour (fenêtre de ± 7 jours)
+   * → { 'MM-JJ': [tmin, tmax, pluie] }. Gardées 60 jours dans le navigateur.
+   */
+  function calculerNormales(jours) {
+    var parJour = {};
+    jours.forEach(function (j) {
+      if (j.tmin == null || j.tmax == null) return;
+      var md = j.date.slice(5); if (md === '02-29') return;
+      var x = parJour[md] || (parJour[md] = [0, 0, 0, 0]);
+      x[0] += j.tmin; x[1] += j.tmax; x[2] += j.pluie || 0; x[3]++;
+    });
+    var cles = Object.keys(parJour).sort(), n = cles.length, res = {};
+    cles.forEach(function (k, i) {
+      var s = [0, 0, 0, 0];
+      for (var d = -7; d <= 7; d++) { var y = parJour[cles[(i + d + n) % n]]; s[0] += y[0]; s[1] += y[1]; s[2] += y[2]; s[3] += y[3]; }
+      res[k] = [Math.round(s[0] / s[3] * 10) / 10, Math.round(s[1] / s[3] * 10) / 10, Math.round(s[2] / s[3] * 100) / 100];
+    });
+    return res;
+  }
+  function normales(lat, lon) {
+    var cle = lat.toFixed(2) + ',' + lon.toFixed(2);
+    try { var c = JSON.parse(localStorage.getItem(CLE_NORMALES) || 'null'); if (c && c.cle === cle && Date.now() - c.date < 60 * 86400000) return Promise.resolve(c.normales); } catch (e) { /* ignoré */ }
+    var fin = new Date().getFullYear() - 1, debut = fin - 9;
+    var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + debut + '-01-01&end_date=' + fin + '-12-31&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&timezone=auto';
+    return avecDelai(url, 20000).then(function (r) {
+      var d = r.daily || {};
+      var res = calculerNormales((d.time || []).map(function (t, i) { return { date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: d.precipitation_sum[i] }; }));
+      try { localStorage.setItem(CLE_NORMALES, JSON.stringify({ cle: cle, date: Date.now(), normales: res })); } catch (e) { /* ignoré */ }
+      return res;
+    }).catch(function () { return null; });
+  }
+
+  racine.Meteo = { fusionner: fusionner, chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal, normales: normales, calculerNormales: calculerNormales };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -2687,6 +2913,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
   }
   function zoneId() { return (S.etat.profil && S.etat.profil.zone) || 'tempere'; }
   function meteo() { return meteoEtat.meteo; }
+  var normalesEtat, normalesLieu = null;
   // Navigation interne : fonctionne aussi dans un cadre où l'adresse ne peut pas changer.
   var route = /^#\//.test(location.hash) ? location.hash : '#/';
   function aller(h) {
@@ -2856,7 +3083,10 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
       if (n && n.min <= 2) lignes.unshift('<li class="v-froid">🥶 <strong>' + capitale(n.nom) + ' : ' + Math.round(n.min) + ' °C</strong> vers ' + n.heureMin.getHours() + ' h' + (n.heuresGel ? ' (gel de ' + n.debutGel.getHours() + ' h à ' + n.finGel.getHours() + ' h)' : '') + ' : couvre les plantes frileuses avant la nuit.</li>');
       var can = M.canicule(m, now);
       if (can && M.dates.ecart(now, can.debut) <= 2) lignes.unshift('<li class="v-chaud">🥵 <strong>Canicule</strong> : ' + can.jours + ' jours à 30 °C ou plus (jusqu’à ' + Math.round(can.tmax) + ' °C). Arrose tôt le matin, paille le sol, ombre les jeunes plants.</li>');
+      var ph = M.pluieProchaine(m, now);
+      if (ph && ph.total >= 0.3) lignes.push('<li>☔ ' + esc(ph.texte) + '</li>');
       M.episodesPluie(m, now, 36).slice(0, 2).forEach(function (ep) { lignes.push('<li>🌧️ ' + esc(ep.texte) + '</li>'); });
+      M.creneaux(m, now).filter(function (c) { return c.debut && D.iso(c.debut) === D.iso(now) && S.actives().length; }).slice(0, 2).forEach(function (c) { lignes.push('<li>' + c.icone + ' Bon moment pour <strong>' + esc(c.titre.split(' (')[0].toLowerCase()) + '</strong> : ' + esc(c.texte.toLowerCase()) + '</li>'); });
     }
     if (!lignes.length) return '';
     return '<section class="carte accent" data-test="jardin-jour"><h2>🌱 Aujourd’hui au jardin</h2><ul class="jardin-jour">' + lignes.join('') + '</ul></section>';
@@ -3218,8 +3448,10 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     var al = alertesCourantes();
     h += '<section class="carte' + (al.some(function (a) { return a.gravite === 'alerte'; }) ? ' alerte' : '') + '" data-test="alertes"><h2>Alertes pour le jardin</h2>' +
       (al.length ? al.map(carteAlerte).join('') : '<p>Rien de particulier cette semaine : ni gel, ni forte chaleur, ni grosse pluie annoncés.</p>') + '</section>';
+    h += blocPluieHeure();
     h += bloc48h();
     h += blocEauBacs();
+    h += blocCreneaux();
     var jours = M.previsions(meteo(), maintenant(), 7);
     h += '<section class="carte"><h2>7 prochains jours</h2><p class="petit">Touche un jour pour voir le détail heure par heure.</p><div class="previsions" data-test="previsions">' + jours.map(function (j, i) {
       return '<a class="prevision" href="#/meteo/' + j.date + '">' +
@@ -3230,11 +3462,15 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
         '<span class="pv">' + (j.rafales != null ? '💨 ' + Math.round(j.rafales) : '') + '</span>' +
         '<span class="pf">›</span></a>';
     }).join('') + '</div><p class="petit">Températures de la nuit / du jour · pluie en mm (ou risque de pluie en %) · rafales en km/h.</p></section>';
+    h += blocSoleil();
+    h += blocTerre();
+    h += blocSoif();
+    h += blocNormales();
     var tombee = 0, debut = D.iso(D.ajouter(D.jour(maintenant()), -3));
     meteo().jours.forEach(function (j) { if (j.date >= debut && j.date < aujourdhuiISO()) tombee += j.pluie || 0; });
     h += '<section class="carte"><h2>Pluie des 3 derniers jours</h2><p><strong>' + (Math.round(tombee * 10) / 10) + ' mm</strong> tombés. ' +
       (tombee >= 10 ? 'La terre des espaces à ciel ouvert a été bien arrosée.' : tombee >= 3 ? 'Un petit apport, insuffisant pour les bacs.' : 'Presque rien : seuls tes arrosages comptent.') + '</p>' +
-      '<p class="petit">' + esc(sourceTexte()) + ' pour ' + esc(p.commune) + ', mises à jour toutes les 3 heures. <button class="lien" data-action="recharger-meteo">Actualiser</button></p></section>';
+      '<p class="petit">' + esc(sourceTexte()) + ' pour ' + esc(p.commune) + ', actualisées toutes les 30 minutes. <button class="lien" data-action="recharger-meteo">Actualiser</button></p></section>';
     return h;
   }
 
@@ -3271,6 +3507,147 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     if (!lignes.length) return '';
     return '<section class="carte" data-test="eau-bacs"><h2>💧 Faut-il arroser ?</h2>' + lignes.join('') + '<a class="lien-meteo" href="#/arrosage">Noter un arrosage</a></section>';
   }
+
+  /* ---------- Graphiques (SVG, survol / toucher = info-bulle) ---------- */
+  function n1(x) { return String(Math.round(x * 10) / 10).replace('.', ','); }
+  function graphe(svg, aria) {
+    return '<div class="graphe" role="img" aria-label="' + esc(aria) + '">' + svg + '<div class="bulle" hidden></div></div>';
+  }
+  /** Courbe des températures d'une journée */
+  function courbeTemperatures(heures, iso) {
+    var pts = heures.filter(function (x) { return x.temp != null; });
+    if (pts.length < 12) return '';
+    var W = 340, H = 150, L = 30, R = 10, T = 18, B = 22;
+    var ts = pts.map(function (x) { return x.temp; }), mn = Math.min.apply(null, ts), mx = Math.max.apply(null, ts);
+    var bas = Math.floor(Math.min(mn, mn <= 4 ? 0 : mn) - 1), haut = Math.ceil(mx + 1);
+    var X = function (hr) { return L + (W - L - R) * hr / 23; }, Y = function (t) { return T + (H - T - B) * (haut - t) / (haut - bas); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="svg-graphe">';
+    [bas, Math.round((bas + haut) / 2), haut].forEach(function (g) { svg += '<line class="grille" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="axe" x="' + (L - 4) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + g + '°</text>'; });
+    if (bas < 0 && haut > 0) svg += '<line class="ligne-gel" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(0) + '" y2="' + Y(0) + '"/><text class="axe gel-txt" x="' + (W - R) + '" y="' + (Y(0) - 4) + '" text-anchor="end">gel</text>';
+    [0, 6, 12, 18, 23].forEach(function (hr) { svg += '<text class="axe" x="' + X(hr) + '" y="' + (H - 6) + '" text-anchor="middle">' + hr + ' h</text>'; });
+    var now = maintenant();
+    if (D.iso(now) === iso) svg += '<line class="maintenant" x1="' + X(now.getHours() + now.getMinutes() / 60) + '" x2="' + X(now.getHours() + now.getMinutes() / 60) + '" y1="' + T + '" y2="' + (H - B) + '"/>';
+    svg += '<path class="trait-temp" d="' + pts.map(function (x, i) { return (i ? 'L' : 'M') + X(x.date.getHours()).toFixed(1) + ' ' + Y(x.temp).toFixed(1); }).join('') + '"/>';
+    var imin = ts.indexOf(mn), imax = ts.indexOf(mx);
+    [[imin, mn, 14], [imax, mx, -8]].forEach(function (e) {
+      var x = X(pts[e[0]].date.getHours()), y = Y(e[1]);
+      svg += '<circle class="point-temp" cx="' + x + '" cy="' + y + '" r="4"/><text class="etiquette" x="' + Math.min(W - R - 12, Math.max(L + 12, x)) + '" y="' + (y + e[2]) + '" text-anchor="middle">' + Math.round(e[1]) + '°</text>';
+    });
+    var larg = (W - L - R) / 23;
+    pts.forEach(function (x) {
+      var hr = x.date.getHours();
+      svg += '<rect class="cible" x="' + (X(hr) - larg / 2) + '" y="' + T + '" width="' + larg + '" height="' + (H - T - B) + '" data-tip="' + esc(hr + ' h : ' + n1(x.temp) + ' °C' + (x.pluie >= 0.1 ? ' · pluie ' + n1(x.pluie) + ' mm' : '') + (x.vent != null ? ' · vent ' + Math.round(x.vent) + ' km/h' : '')) + '"/>';
+    });
+    return graphe(svg + '</svg>', 'Courbe des températures : minimum ' + Math.round(mn) + ' °C, maximum ' + Math.round(mx) + ' °C');
+  }
+  /** Pluie tombée (barres) et eau évaporée (ligne), 30 derniers jours */
+  function grapheSoif(s) {
+    var js = s.jours, n = js.length, W = 340, H = 160, L = 30, R = 10, T = 12, B = 22;
+    var mx = Math.max(2, Math.max.apply(null, js.map(function (j) { return Math.max(j.pluie, j.et0); })));
+    var haut = Math.ceil(mx / 5) * 5, pas = (W - L - R) / n;
+    var X = function (i) { return L + pas * (i + 0.5); }, Y = function (v) { return T + (H - T - B) * (1 - v / haut); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="svg-graphe">';
+    [0, haut / 2, haut].forEach(function (g) { svg += '<line class="grille" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="axe" x="' + (L - 4) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + n1(g) + '</text>'; });
+    svg += '<text class="axe" x="' + (L - 4) + '" y="' + (T - 2) + '" text-anchor="end">mm</text>';
+    var lb = Math.max(1, pas - 2);
+    js.forEach(function (j, i) {
+      if (j.pluie < 0.05) return;
+      var x = X(i) - lb / 2, y = Y(j.pluie), h0 = Y(0) - y, r = Math.min(2, lb / 2, h0);
+      svg += '<path class="barre-pluie" d="M' + x + ' ' + Y(0) + 'V' + (y + r) + 'Q' + x + ' ' + y + ' ' + (x + r) + ' ' + y + 'H' + (x + lb - r) + 'Q' + (x + lb) + ' ' + y + ' ' + (x + lb) + ' ' + (y + r) + 'V' + Y(0) + 'Z"/>';
+    });
+    svg += '<path class="trait-evap" d="' + js.map(function (j, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(j.et0).toFixed(1); }).join('') + '"/>';
+    [0, Math.floor(n / 2), n - 1].forEach(function (i) { svg += '<text class="axe" x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle') + '">' + esc(D.format(D.lire(js[i].date))) + '</text>'; });
+    js.forEach(function (j, i) { svg += '<rect class="cible" x="' + (X(i) - pas / 2) + '" y="' + T + '" width="' + pas + '" height="' + (H - T - B) + '" data-tip="' + esc(capitale(D.formatJour(D.lire(j.date))) + ' · pluie ' + n1(j.pluie) + ' mm · évaporation ' + n1(j.et0) + ' mm') + '"/>'; });
+    return '<p class="legende-graphe"><span><i class="pastille pluie"></i>Pluie tombée</span><span><i class="pastille evap"></i>Eau évaporée</span></p>' +
+      graphe(svg + '</svg>', 'Pluie tombée et eau évaporée chaque jour sur 30 jours');
+  }
+  document.addEventListener('pointerover', bulle);
+  document.addEventListener('pointerdown', bulle);
+  function bulle(ev) {
+    var c = ev.target.closest && ev.target.closest('.graphe .cible');
+    document.querySelectorAll('.graphe .cible.actif').forEach(function (x) { if (x !== c) x.classList.remove('actif'); });
+    document.querySelectorAll('.graphe .bulle').forEach(function (b) { if (!c || !b.parentNode.contains(c)) b.hidden = true; });
+    if (!c) return;
+    var g = c.closest('.graphe'), b = g.querySelector('.bulle'), r = c.getBoundingClientRect(), rg = g.getBoundingClientRect();
+    c.classList.add('actif'); b.textContent = c.getAttribute('data-tip'); b.hidden = false;
+    var x = r.left + r.width / 2 - rg.left, w = b.offsetWidth;
+    b.style.left = Math.max(0, Math.min(rg.width - w, x - w / 2)) + 'px';
+  }
+
+  /* ---------- Météo : blocs supplémentaires ---------- */
+  function blocPluieHeure() {
+    var p = M.pluieProchaine(meteo(), maintenant());
+    if (!p) return '';
+    var mx = Math.max(0.5, Math.max.apply(null, p.quarts.map(function (q) { return q.pluie; })));
+    return '<section class="carte" data-test="pluie-heure"><h2>☔ Dans les 2 prochaines heures</h2><p>' + esc(p.texte) + '</p>' +
+      '<div class="quarts" aria-hidden="true">' + p.quarts.map(function (q) {
+        var hh = q.date.getHours() + 'h' + (q.date.getMinutes() ? String(q.date.getMinutes()).padStart(2, '0') : '');
+        return '<div class="quart" title="' + esc(hh + ' : ' + n1(q.pluie) + ' mm') + '"><i style="height:' + (q.pluie >= 0.05 ? Math.max(8, 100 * q.pluie / mx) : 0) + '%"></i><span>' + (q.date.getMinutes() === 0 ? q.date.getHours() + ' h' : '') + '</span></div>';
+      }).join('') + '</div><p class="petit">Prévision Météo-France au quart d’heure (modèle AROME).</p></section>';
+  }
+  function blocCreneaux() {
+    var cs = M.creneaux(meteo(), maintenant());
+    if (!cs.length) return '';
+    return '<section class="carte" data-test="creneaux"><h2>🗓️ Les bons moments cette semaine</h2>' + cs.map(function (c) {
+      return '<div class="creneau' + (c.debut ? '' : ' aucun') + '"><p>' + c.icone + ' <strong>' + esc(c.titre) + '</strong></p><p class="creneau-quand">' + esc(c.texte) + '</p><p class="petit">Il faut : ' + esc(c.pourquoi) + '.</p></div>';
+    }).join('') + '<p class="petit">Le premier créneau favorable des 7 prochains jours, calculé heure par heure.</p></section>';
+  }
+  function blocSoleil() {
+    var js = M.previsions(meteo(), maintenant(), 7).filter(function (j) { return j.soleil != null || j.uv != null; });
+    if (!js.length) return '';
+    var mxUv = js.reduce(function (a, j) { return j.uv != null && (!a || j.uv > a.uv) ? j : a; }, null);
+    var niv = mxUv && M.niveauUV(mxUv.uv);
+    return '<section class="carte" data-test="soleil"><h2>☀️ Soleil et UV</h2><div class="soleil-liste">' + js.map(function (j, i) {
+      var u = M.niveauUV(j.uv), pc = j.jour && j.soleil != null && j.jour > 0 ? Math.round(100 * j.soleil / j.jour) : null;
+      return '<div class="soleil-jour"><span>' + esc(nomJour(j.jour, i)) + '</span><span class="soleil-barre"><i style="width:' + (pc || 0) + '%"></i></span><span>' + (j.soleil != null ? n1(j.soleil) + ' h' : '—') + '</span><span class="uv uv-' + (u ? u.niveau : '') + '">' + (j.uv != null ? 'UV ' + Math.round(j.uv) : '') + '</span></div>';
+    }).join('') + '</div><p class="petit">Heures de soleil sur la durée du jour · indice UV maximal.</p>' +
+      (niv && niv.conseil ? '<p>' + esc(niv.texte + ' ' + nomJour(mxUv.jour).toLowerCase() + ' : ' + niv.conseil) + '</p>' : '<p class="petit">UV faibles cette semaine : pas de précaution particulière.</p>') + '</section>';
+  }
+  function blocTerre() {
+    var t = M.temperatureSol(meteo(), maintenant());
+    if (!t) return '';
+    var now = maintenant(), possible = [], bientot = [], froid = [], vus = {};
+    t.cultures.forEach(function (x) {
+      var g = x.geste === 'plantation' ? 'plantation' : 'semis_place';
+      var saison = (x.culture.demarrage[g] && M.conseilGeste(x.culture, g, now, zoneId(), meteo()).niveau >= 1);
+      if (!saison) return;
+      var nom = x.culture.emoji + ' ' + x.culture.nom + (x.geste === 'plantation' ? ' (plants)' : '');
+      if (vus[nom]) return; vus[nom] = 1;
+      if (x.ok) possible.push(nom);
+      else if (x.date) bientot.push(nom + ' : ' + x.min + ' °C, vers ' + M.dates.quand(x.date, now).replace(/ (matin|après-midi|soir)$/, ''));
+      else froid.push(nom + ' : ' + x.min + ' °C');
+    });
+    var tend = t.tendance >= 1 ? '↗ elle se réchauffe (' + n1(t.jours[t.jours.length - 1].moyenne) + ' °C dans ' + (t.jours.length - 1) + ' jours)' : t.tendance <= -1 ? '↘ elle se refroidit (' + n1(t.jours[t.jours.length - 1].moyenne) + ' °C dans ' + (t.jours.length - 1) + ' jours)' : 'stable cette semaine';
+    var h = '<section class="carte" data-test="terre"><h2>🌡️ Température de la terre</h2><p class="jour-grand">' + n1(t.actuel) + ' °C <span class="petit">à 6 cm de profondeur, ' + esc(tend) + '</span></p>';
+    if (t.gele) h += '<p><strong>Terre gelée :</strong> ne sème et ne plante rien, ne marche pas sur les planches.</p>';
+    h += possible.length ? '<p><strong>Terre assez chaude pour :</strong> ' + esc(possible.join(', ')) + '.</p>' : '';
+    h += bientot.length ? '<p><strong>Bientôt :</strong> ' + esc(bientot.join(' ; ')) + '.</p>' : '';
+    h += froid.length ? '<p><strong>Encore trop froide pour :</strong> ' + esc(froid.join(' ; ')) + '.</p>' : '';
+    if (!possible.length && !bientot.length && !froid.length) h += '<p>Ce n’est pas la saison des semis dehors : la température de la terre comptera à nouveau au printemps.</p>';
+    h += '<details><summary>Température de terre minimale pour chaque culture</summary><ul>' + t.cultures.map(function (x) { return '<li>' + x.culture.emoji + ' ' + esc(x.culture.nom) + (x.geste === 'plantation' ? ' (plantation)' : ' (semis)') + ' : ' + x.min + ' °C</li>'; }).join('') + '</ul></details>';
+    h += '<p class="petit">Les graines ne germent pas (ou pourrissent) dans une terre trop froide, même si l’air est doux.</p></section>';
+    return h;
+  }
+  function blocSoif() {
+    var s = M.soif(meteo().passe, maintenant());
+    if (!s) return '';
+    var icone = s.verdict === 'sec' ? '🏜️' : s.verdict === 'humide' ? '💦' : '⚖️';
+    return '<section class="carte" data-test="soif"><h2>🥤 Le jardin a-t-il eu soif ?</h2>' +
+      '<p class="jour-grand">' + icone + ' <span class="soif-chiffres">' + Math.round(s.pluie) + ' mm tombés · ' + Math.round(s.et0) + ' mm évaporés</span></p>' +
+      '<p>' + esc(s.texte) + '</p>' + grapheSoif(s) +
+      '<p class="petit">7 derniers jours : ' + n1(s.semaine.pluie) + ' mm de pluie pour ' + n1(s.semaine.et0) + ' mm évaporés. L’évaporation est celle d’un gazon bien arrosé : les bacs perdent un peu plus, un sol paillé un peu moins.</p>' +
+      '<details><summary>Voir les chiffres jour par jour</summary><table class="tableau"><thead><tr><th>Jour</th><th>Pluie</th><th>Évaporation</th></tr></thead><tbody>' +
+      s.jours.slice().reverse().map(function (j) { return '<tr><td>' + esc(D.format(D.lire(j.date))) + '</td><td>' + n1(j.pluie) + ' mm</td><td>' + n1(j.et0) + ' mm</td></tr>'; }).join('') + '</tbody></table></details></section>';
+  }
+  function blocNormales() {
+    var c = M.comparaisonNormale(meteo(), normalesEtat, maintenant());
+    if (!c) return normalesEtat === undefined ? '<section class="carte" data-test="normales"><h2>📊 Par rapport à d’habitude</h2><p class="petit">Calcul des normales de ta commune (10 ans d’historique)…</p></section>' : '';
+    var ic = c.ecart >= 1 ? '🔺' : c.ecart <= -1 ? '🔻' : '🟰';
+    return '<section class="carte" data-test="normales"><h2>📊 Par rapport à d’habitude</h2><p>' + ic + ' ' + esc(c.texte) + '</p>' +
+      '<p class="petit">Normales de saison chez toi : ' + Math.round(c.normaleTmin) + ' °C la nuit, ' + Math.round(c.normaleTmax) + ' °C le jour (moyenne des 10 dernières années).</p>' +
+      (c.conseil ? '<p>' + esc(c.conseil) + '</p>' : '') + (c.textePluie ? '<p>💧 ' + esc(c.textePluie) + '</p>' : '') + '</section>';
+  }
+
   /** Détail d'un jour : heure par heure */
   function ecranMeteoJour(iso) {
     var h = entete('Météo du jardin', '#/meteo');
@@ -3280,6 +3657,8 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     if (!j) return h + '<section class="carte"><p>Pas de prévision pour ce jour.</p></section>';
     var d = D.lire(iso), i = D.ecart(maintenant(), d), c = M.ciel(j.code), now = maintenant();
     var heures = M.heuresDuJour(m, iso);
+    var hsSol = heures.filter(function (x) { return x.sol != null; }), solJour = hsSol.length >= 12 ? hsSol.reduce(function (a, x) { return a + x.sol; }, 0) / hsSol.length : null;
+    var uvj = M.niveauUV(j.uv);
     var idx = m.jours.indexOf(j), prec = m.jours[idx - 1], suiv = m.jours[idx + 1];
     var debut = D.iso(D.jour(now));
     h += '<nav class="jour-nav">' + (prec && prec.date >= debut ? '<a href="#/meteo/' + prec.date + '">‹ ' + esc(nomJour(D.lire(prec.date))) + '</a>' : '<span></span>') +
@@ -3289,14 +3668,17 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
       '<ul class="jardin-jour">' +
       '<li>💧 Pluie : <strong>' + (Math.round((j.pluie || 0) * 10) / 10) + ' mm</strong>' + (j.probaPluie != null ? ' · risque ' + j.probaPluie + ' %' : '') + '</li>' +
       (j.rafales != null ? '<li>💨 Rafales jusqu’à ' + Math.round(j.rafales) + ' km/h</li>' : '') +
-      (j.et0 != null ? '<li>☀️ Évaporation : ' + (Math.round(j.et0 * 10) / 10) + ' mm d’eau perdus par la terre et les plantes' + (j.et0 >= 5 ? ' (forte : la terre sèche vite)' : j.et0 <= 1.5 ? ' (faible)' : '') + '</li>' : '') +
-      '</ul><p class="petit">' + esc(fiabilite(i)) + ' · ' + esc(sourceTexte(iso)) + '.</p></section>';
+      (j.soleil != null ? '<li>🌞 Soleil : ' + n1(j.soleil) + ' h' + (j.jour ? ' sur ' + n1(j.jour) + ' h de jour' : '') + (j.uv != null ? ' · ' + esc(M.niveauUV(j.uv).texte) + ' (' + Math.round(j.uv) + ')' : '') + '</li>' : '') +
+      (solJour != null ? '<li>🌡️ Terre à 6 cm : ' + n1(solJour) + ' °C en moyenne</li>' : '') +
+      (j.et0 != null ? '<li>♨️ Évaporation : ' + (Math.round(j.et0 * 10) / 10) + ' mm d’eau perdus par la terre et les plantes' + (j.et0 >= 5 ? ' (forte : la terre sèche vite)' : j.et0 <= 1.5 ? ' (faible)' : '') + '</li>' : '') +
+      '</ul>' + (uvj && uvj.conseil ? '<p class="petit">☀️ ' + esc(uvj.conseil) + '</p>' : '') + '<p class="petit">' + esc(fiabilite(i)) + ' · ' + esc(sourceTexte(iso)) + '.</p></section>';
     var al = alertesCourantes().filter(function (a) { return a.date === iso; });
     if (al.length) h += '<section class="carte alerte"><h2>Pour le jardin ce jour-là</h2>' + al.map(carteAlerte).join('') + '</section>';
     var minuit = new Date(d.getTime()); minuit.setHours(0, 0, 0, 0);
     var eps = M.episodesPluie(m, minuit, 24).filter(function (e) { return D.iso(e.debut) === iso; });
     if (eps.length) h += '<section class="carte"><h2>Quand va-t-il pleuvoir ?</h2><ul class="jardin-jour">' + eps.map(function (e) { return '<li>🌧️ De ' + e.debut.getHours() + ' h à ' + e.fin.getHours() + ' h : ' + (Math.round(e.total * 10) / 10) + ' mm' + (e.probaMax ? ' (' + e.probaMax + ' % de risque)' : '') + '</li>'; }).join('') + '</ul></section>';
     if (heures.length) {
+      h += '<section class="carte"><h2>Températures de la journée</h2>' + courbeTemperatures(heures, iso) + '<p class="petit">Touche la courbe pour lire chaque heure.</p></section>';
       h += '<section class="carte"><h2>Heure par heure</h2><div class="heures" data-test="heures"><div class="heure entete-h"><span>Heure</span><span></span><span>Temp.</span><span>Pluie</span><span>Vent</span><span>Humid.</span></div>' + heures.map(function (x) {
         var passe = x.date.getTime() + 3600000 <= now.getTime();
         return '<div class="heure' + (passe ? ' passe' : '') + (x.temp != null && x.temp <= 0 ? ' gel' : '') + '">' +
@@ -3454,6 +3836,10 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     if (!p || typeof p.lat !== 'number') { meteoEtat = { etat: 'aucune', meteo: null, message: '' }; rendre(); return; }
     meteoEtat = { etat: 'chargement', meteo: meteoEtat.meteo, message: '' }; rendre();
     window.Meteo.prevision(p.lat, p.lon, forcer).then(function (r) { meteoEtat = r; rendre(); });
+    if (normalesEtat === undefined || normalesLieu !== p.lat + ',' + p.lon) {
+      normalesLieu = p.lat + ',' + p.lon; normalesEtat = undefined;
+      window.Meteo.normales(p.lat, p.lon).then(function (n) { if (normalesLieu === p.lat + ',' + p.lon) { normalesEtat = n; rendre(); } });
+    }
   }
 
   window.addEventListener('hashchange', function () { if (/^#\//.test(location.hash) && location.hash !== route) { route = location.hash; rendre(); window.scrollTo(0, 0); } });

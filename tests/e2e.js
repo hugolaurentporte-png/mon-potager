@@ -43,13 +43,19 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
       const iso = d.toISOString().slice(0, 10), md = iso.slice(5);
       time.push(iso); tmin.push(md <= (ref ? '04-10' : '03-25') || md >= (ref ? '10-28' : '11-12') ? -2 : 8);
     }
-    return { daily: { time, temperature_2m_min: tmin } };
+    return { daily: { time, temperature_2m_min: tmin, temperature_2m_max: tmin.map(t => t + 10), precipitation_sum: tmin.map(() => 2) } };
   };
   await ctx.route('https://archive-api.open-meteo.com/**', r => r.fulfill({ json: historique(r.request().url()) }));
-  await ctx.route('https://api.open-meteo.com/v1/forecast**', r => meteoCourante ? r.fulfill({ json: meteoCourante }) : r.abort('failed'));
+  // 30 derniers jours (pluie / évaporation) : série fabriquée qui se termine au jour « aujourd'hui » du jeu de données
+  const trenteJours = () => {
+    const fin = new Date(meteoCourante.daily.time[3] + 'T12:00:00'), deb = new Date(fin.getTime() - 31 * 864e5);
+    const iso = deb.toISOString().slice(0, 10);
+    return reponseOpenMeteo(serie(iso, Array.from({ length: 32 }, (_, i) => [10, 20, i % 5 === 0 ? 6 : 0])));
+  };
+  await ctx.route('https://api.open-meteo.com/v1/forecast**', r => !meteoCourante ? r.abort('failed') : r.fulfill({ json: /past_days=31/.test(r.request().url()) ? trenteJours() : meteoCourante }));
 
   const heure = async (iso) => { await page.clock.setFixedTime(new Date(iso)); };
-  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v3')); await page.reload(); await page.waitForTimeout(150); };
+  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v4')); await page.reload(); await page.waitForTimeout(150); };
   const texte = async (sel) => (await page.locator(sel).first().innerText());
   const capture = async (nom) => { if (CAPTURES) await page.screenshot({ path: path.join(CAPTURES, nom + '.png'), fullPage: true }); };
 
@@ -146,7 +152,7 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   const urlTomate = page.url();
   // Écran météo et alertes : gel avec une tomate en terre
   await heure('2027-05-25T09:00:00+02:00');
-  meteoCourante = reponseOpenMeteo(serie('2027-05-22', [[10, 20], [11, 21], [9, 19], [6, 15], [1, 12], [8, 18, 25, 70, 95], [10, 22], [11, 23], [12, 24], [12, 24], [12, 24]]));
+  meteoCourante = reponseOpenMeteo(serie('2027-05-22', [[10, 20], [11, 21], [9, 19], [6, 15], [1, 12], [8, 18, 25, 70, 95], [10, 22], [11, 23], [12, 24], [12, 24], [12, 24]]), {}, [['2027-05-25T09:00', 0], ['2027-05-25T09:15', 0], ['2027-05-25T09:30', 0.2], ['2027-05-25T09:45', 0.5], ['2027-05-25T10:00', 0.3], ['2027-05-25T10:15', 0], ['2027-05-25T10:30', 0], ['2027-05-25T10:45', 0]]);
   await ouvrir('#/meteo');
   await page.waitForSelector('[data-test="previsions"]');
   const ecranM = await page.innerText('main');
@@ -159,10 +165,20 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   // Prochaines 48 h, « Faut-il arroser ? », puis un jour en détail heure par heure
   assert.match(await page.innerText('[data-test="48h"]'), /minimum/);
   assert.match(await page.innerText('[data-test="eau-bacs"]'), /Eau disponible estimée/);
+  assert.match(await page.innerText('[data-test="pluie-heure"]'), /Pluie à partir de 9 h 30 \(1 mm/);
+  assert.equal(await page.locator('[data-test="creneaux"] .creneau').count(), 4);
+  assert.match(await page.innerText('[data-test="terre"]'), /°C/);
+  assert.match(await page.innerText('[data-test="soleil"]'), /UV 3/);
+  assert.match(await page.innerText('[data-test="soif"]'), /mm tombés/);
+  await page.waitForSelector('[data-test="normales"] >> text=/d’habitude chez toi|proches des normales/');
+  await page.locator('[data-test="soif"] .cible').last().dispatchEvent('pointerdown');
+  assert.match(await page.innerText('[data-test="soif"] .bulle'), /évaporation/);
   await page.click('.prevision >> nth=1');
   await page.waitForSelector('[data-test="heures"]');
   assert.match(await page.innerText('[data-test="jour-titre"]'), /Mercredi 26 mai/);
   assert.equal(await page.locator('.heure:not(.entete-h)').count(), 24);
+  assert.ok(await page.locator('.trait-temp').count() === 1, 'courbe des températures');
+  assert.match(await page.innerText('[data-test="jour-resume"]'), /Terre à 6 cm/);
   assert.match(await page.innerText('main'), /Prévision très fiable/);
   assert.match(await page.innerText('main'), /Gelée blanche|gelée blanche/);
   await capture('meteo-jour');

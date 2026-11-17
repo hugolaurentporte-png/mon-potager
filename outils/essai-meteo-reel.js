@@ -52,6 +52,22 @@ async function essai(cp) {
     verifier(a.bilan, e.nom + ' : pas de bilan d’eau');
     console.log('Arrosage ' + e.nom + ' (arrosé il y a 2 jours) : ' + (a.bilan ? a.bilan.pourcentEau + ' % d’eau, ' : '') + a.decision.icone + ' ' + a.decision.titre + ' — ' + a.decision.texte);
   });
+  var sol = M.temperatureSol(m, maintenant);
+  verifier(sol, 'température de la terre manquante');
+  if (sol) console.log('Terre : ' + sol.actuel + ' °C (moyenne ' + sol.moyenne.toFixed(1) + ', tendance ' + sol.tendance.toFixed(1) + ') — assez chaude pour : ' + sol.cultures.filter(function (x) { return x.ok; }).map(function (x) { return x.culture.nom; }).join(', '));
+  M.creneaux(m, maintenant).forEach(function (x) { console.log('Créneau ' + x.id + ' : ' + x.texte); });
+  var ph = M.pluieProchaine(m, maintenant);
+  verifier(ph, 'pluie au quart d’heure manquante');
+  if (ph) console.log('2 h : ' + ph.texte + ' [' + ph.quarts.map(function (q) { return q.pluie; }).join(' ') + ']');
+  var so = M.soif(m.passe, maintenant);
+  verifier(so, '30 derniers jours manquants');
+  if (so) console.log('Soif 30 j : ' + so.pluie.toFixed(0) + ' mm tombés / ' + so.et0.toFixed(0) + ' mm évaporés → ' + so.verdict);
+  verifier(m.jours.some(function (j) { return j.soleil != null && j.uv != null; }), 'soleil / UV manquants');
+  console.log('Soleil : ' + m.jours.slice(3, 10).map(function (j) { return j.soleil + ' h UV ' + j.uv; }).join(' | '));
+  var nor = await Meteo.normales(c.lat, c.lon);
+  verifier(nor, 'normales indisponibles');
+  var cmp = M.comparaisonNormale(m, nor, maintenant);
+  if (cmp) console.log('Normales : ' + cmp.texte + ' ' + (cmp.textePluie || ''));
   var cl = await Meteo.climatLocal(c.lat, c.lon);
   console.log('Climat local : ' + (cl ? 'dernière gelée ' + cl.derniere + ', première ' + cl.premiere + ' → décalage printemps ' + cl.decalagePrintemps + ' j' : 'indisponible'));
 }

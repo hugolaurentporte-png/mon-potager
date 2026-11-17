@@ -470,6 +470,155 @@
     return best.length >= 3 ? { debut: lireDate(best[0].date), jours: best.length, tmax: Math.max.apply(null, best.map(function (j) { return j.tmax; })), nuitsChaudes: best.filter(function (j) { return j.tmin >= 20; }).length } : null;
   }
 
+  function nomJourCourt(d, maintenant) {
+    var n = ecartJours(maintenant, d);
+    return n === 0 ? 'aujourd’hui' : n === 1 ? 'demain' : JOURS[d.getDay()] + ' ' + d.getDate();
+  }
+  function hMin(d) { var m = d.getMinutes(); return d.getHours() + ' h' + (m ? ' ' + (m < 10 ? '0' : '') + m : ''); }
+
+  /* ---------- Température de la terre ---------- */
+  // Température minimale de la terre (à 6 cm) pour semer dehors ou planter. Valeurs indicatives.
+  REGLES.tempSol = {
+    semis_place: { radis: 8, laitue: 8, mache: 5, epinard: 5, carotte: 8, betterave: 10, oignon: 8, 'haricot-nain': 12, courgette: 14, concombre: 15 },
+    plantation: { tomate: 12, 'tomate-cerise': 12, poivron: 15, courgette: 14, concombre: 15 }
+  };
+  function solParJour(meteo) {
+    var j = {};
+    (meteo && meteo.heures || []).forEach(function (h) { if (h.sol == null) return; var k = h.t.slice(0, 10); (j[k] = j[k] || []).push(h.sol); });
+    var r = {}; Object.keys(j).forEach(function (k) { if (j[k].length >= 12) r[k] = j[k].reduce(function (a, b) { return a + b; }, 0) / j[k].length; });
+    return r;
+  }
+  /** Terre : température actuelle, tendance, et ce qu'on peut semer ou planter */
+  function temperatureSol(meteo, maintenant) {
+    var pj = solParJour(meteo), auj = isoDate(jourDe(maintenant));
+    if (pj[auj] == null) return null;
+    var maintenantH = (meteo.heures || []).filter(function (h) { return h.sol != null && dateHeure(h.t) <= maintenant; }).pop();
+    var futurs = Object.keys(pj).filter(function (k) { return k >= auj; }).sort();
+    var cultures = [];
+    ['semis_place', 'plantation'].forEach(function (geste) {
+      var t = REGLES.tempSol[geste];
+      Object.keys(t).forEach(function (id) {
+        var c = culture(id); if (!c) return;
+        var ok = pj[auj] >= t[id], date = null;
+        if (!ok) futurs.some(function (k) { if (pj[k] >= t[id]) { date = lireDate(k); return true; } return false; });
+        cultures.push({ culture: c, geste: geste, min: t[id], ok: ok, date: date });
+      });
+    });
+    var dernier = futurs[futurs.length - 1];
+    return { actuel: maintenantH ? maintenantH.sol : pj[auj], moyenne: pj[auj], tendance: pj[dernier] - pj[auj], jours: futurs.map(function (k) { return { date: k, moyenne: pj[k] }; }), cultures: cultures, gele: maintenantH ? maintenantH.sol <= 0 : pj[auj] <= 0 };
+  }
+
+  /* ---------- Bons créneaux pour les gestes ---------- */
+  REGLES.creneaux = {
+    traiter: { titre: 'Traiter (purin, bouillie, savon noir)', icone: '🧴', pourquoi: 'ni pluie pendant 6 h, ni vent, ni forte chaleur' },
+    repiquer: { titre: 'Repiquer ou planter', icone: '🌱', pourquoi: 'temps doux et couvert (ou fin de journée), pas de gel la nuit suivante' },
+    semer: { titre: 'Semer dehors', icone: '🫘', pourquoi: 'terre ni gelée ni détrempée, pas d’averse juste après' },
+    recolter: { titre: 'Récolter pour conserver', icone: '🧺', pourquoi: 'temps sec depuis la veille, légumes secs (meilleure conservation)' }
+  };
+  function creneaux(meteo, maintenant) {
+    if (!meteo || !meteo.heures) return [];
+    var debut = new Date(maintenant.getTime()); debut.setMinutes(0, 0, 0);
+    var tous = heuresEntre(meteo, new Date(debut.getTime() - 24 * 3600000), new Date(debut.getTime() + 8 * JOUR)).filter(function (h) { return h.temp != null; });
+    var i0 = 0; while (i0 < tous.length && tous[i0].date < debut) i0++;
+    var fin7 = new Date(debut.getTime() + 7 * JOUR);
+    function somme(a, b) { var s = 0; for (var k = Math.max(0, a); k < Math.min(tous.length, b); k++) s += tous[k].pluie || 0; return s; }
+    function minTemp(a, b) { var m = Infinity; for (var k = a; k < Math.min(tous.length, b); k++) m = Math.min(m, tous[k].temp); return m; }
+    var regles = {
+      traiter: function (h, i) { return i + 6 <= tous.length && somme(i, i + 6) < 0.2 && (h.vent == null || h.vent <= 15) && (h.rafales == null || h.rafales <= 35) && h.temp >= 8 && h.temp <= 25; },
+      repiquer: function (h, i) { var H = h.date.getHours(); return h.temp >= 8 && h.temp <= 24 && ((h.nuages != null && h.nuages >= 60) || H >= 17) && somme(i, i + 2) < 1 && (h.vent == null || h.vent <= 25) && minTemp(i, i + 16) > 1; },
+      semer: function (h, i) { return h.temp >= 6 && (h.sol == null || h.sol > 2) && somme(i - 24, i) < 15 && somme(i, i + 6) < 5 && (h.vent == null || h.vent <= 30); },
+      recolter: function (h, i) { var H = h.date.getHours(); return H >= 10 && somme(i - 18, i + 1) < 0.2 && h.temp >= 5 && h.temp <= 28; }
+    };
+    return Object.keys(regles).map(function (id) {
+      var run = null, best = null;
+      for (var i = i0; i < tous.length && tous[i].date < fin7; i++) {
+        var h = tous[i], H = h.date.getHours(), ok = H >= 7 && H < 21 && regles[id](h, i);
+        var memeJour = run && isoDate(run.fin) === isoDate(h.date);
+        if (ok && run && memeJour && h.date - run.fin === 3600000) run.fin = h.date;
+        else if (ok) run = { debut: h.date, fin: h.date };
+        else run = null;
+        if (run && (run.fin - run.debut) >= 3600000) { best = { debut: run.debut, fin: run.fin }; break; }
+      }
+      var R = REGLES.creneaux[id], r = { id: id, titre: R.titre, icone: R.icone, pourquoi: R.pourquoi };
+      if (best) {
+        // prolonge le créneau trouvé jusqu'à sa vraie fin
+        for (var k = 0; k < tous.length; k++) if (tous[k].date - best.fin === 3600000 && isoDate(tous[k].date) === isoDate(best.fin) && tous[k].date.getHours() < 21 && regles[id](tous[k], k)) best.fin = tous[k].date;
+        r.debut = best.debut; r.fin = new Date(best.fin.getTime() + 3600000);
+        r.texte = capitaliser(nomJourCourt(r.debut, maintenant)) + ' de ' + hMin(r.debut) + ' à ' + hMin(r.fin);
+      } else r.texte = 'Pas de bon créneau dans les 7 prochains jours';
+      return r;
+    });
+  }
+  function capitaliser(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  /* ---------- Pluie dans les 2 prochaines heures (quart d'heure par quart d'heure) ---------- */
+  function pluieProchaine(meteo, maintenant) {
+    if (!meteo || !meteo.quarts || !meteo.quarts.length) return null;
+    var qs = meteo.quarts.map(function (q) { return { date: dateHeure(q.t), pluie: q.pluie || 0 }; }).filter(function (q) { return q.date.getTime() + 15 * 60000 > maintenant.getTime(); }).slice(0, 8);
+    if (qs.length < 4) return null;
+    var seuil = 0.1, total = qs.reduce(function (a, q) { return a + q.pluie; }, 0);
+    var pluvieux = qs.filter(function (q) { return q.pluie >= seuil; });
+    var res = { quarts: qs, total: total }, finQ = function (q) { return new Date(q.date.getTime() + 15 * 60000); };
+    if (!pluvieux.length) res.texte = 'Pas de pluie prévue dans les 2 prochaines heures : tu as le temps d’aller au jardin.';
+    else if (qs[0].pluie >= seuil) {
+      var sec = qs.filter(function (q) { return q.pluie < seuil; })[0];
+      res.texte = sec ? 'Il pleut en ce moment, jusqu’à ' + hMin(sec.date) + ' environ (' + arrondi(total) + ' mm).' : 'Pluie pendant les 2 prochaines heures (' + arrondi(total) + ' mm).';
+    } else {
+      res.texte = 'Pluie à partir de ' + hMin(pluvieux[0].date) + ' (' + arrondi(total) + ' mm d’ici ' + hMin(finQ(qs[qs.length - 1])) + ').';
+    }
+    return res;
+  }
+
+  /* ---------- Le jardin a-t-il eu soif ? (30 derniers jours) ---------- */
+  function soif(passe, maintenant, nb) {
+    if (!passe || !passe.length) return null;
+    var auj = isoDate(jourDe(maintenant));
+    var js = passe.filter(function (j) { return j.date < auj && j.et0 != null; }).slice(-(nb || 30));
+    if (js.length < 10) return null;
+    var pluie = 0, et0 = 0; js.forEach(function (j) { pluie += j.pluie; et0 += j.et0; });
+    var sem = js.slice(-7), p7 = 0, e7 = 0; sem.forEach(function (j) { p7 += j.pluie; e7 += j.et0; });
+    var ratio = et0 > 0 ? pluie / et0 : 9, verdict, texte;
+    if (et0 < 15 && pluie >= et0) { verdict = 'humide'; texte = 'Période fraîche : la terre perd peu d’eau et la pluie a largement suffi. Les cultures en pleine terre n’ont pas eu soif ; seuls les bacs sous abri ont besoin de toi.'; }
+    else if (ratio >= 1.2) { verdict = 'humide'; texte = 'Il est tombé plus d’eau que la terre n’en a perdu : pas de soif en pleine terre. Attention aux limaces et aux maladies.'; }
+    else if (ratio >= 0.6) { verdict = 'equilibre'; texte = 'La pluie a compensé une bonne partie de l’évaporation. Les bacs et les cultures gourmandes ont pu manquer d’eau entre deux pluies.'; }
+    else { verdict = 'sec'; texte = 'Période sèche : la terre a perdu bien plus d’eau qu’elle n’en a reçu. Arrose en profondeur (moins souvent mais plus copieusement) et paille le sol.'; }
+    return { jours: js, pluie: pluie, et0: et0, ecart: pluie - et0, verdict: verdict, texte: texte, semaine: { pluie: p7, et0: e7 } };
+  }
+
+  /* ---------- Comparaison avec la normale ---------- */
+  function normaleDe(normales, iso) { return normales && normales[iso.slice(5)]; }
+  function comparaisonNormale(meteo, normales, maintenant) {
+    if (!meteo || !normales) return null;
+    var auj = isoDate(jourDe(maintenant)), js = (meteo.jours || []).filter(function (j) { return j.date >= auj; }).slice(0, 7);
+    var e = [], n = [];
+    js.forEach(function (j) { var x = normaleDe(normales, j.date); if (x) { e.push((j.tmin + j.tmax) / 2 - (x[0] + x[1]) / 2); n.push(x); } });
+    if (e.length < 4) return null;
+    var ecart = e.reduce(function (a, b) { return a + b; }, 0) / e.length;
+    var nTmin = n.reduce(function (a, x) { return a + x[0]; }, 0) / n.length, nTmax = n.reduce(function (a, x) { return a + x[1]; }, 0) / n.length;
+    var r = { ecart: ecart, normaleTmin: nTmin, normaleTmax: nTmax };
+    var a = Math.abs(Math.round(ecart * 10) / 10);
+    r.texte = a < 1 ? 'Les 7 prochains jours sont proches des normales de saison.' : 'Les 7 prochains jours seront ' + String(a).replace('.', ',') + ' °C plus ' + (ecart > 0 ? 'doux' : 'frais') + ' que d’habitude chez toi.';
+    if (ecart >= 3) r.conseil = 'Douceur inhabituelle : la végétation peut repartir trop tôt. Ne te fie pas à la douceur pour planter des légumes frileux, un retour du froid reste possible.';
+    else if (ecart <= -3) r.conseil = 'Fraîcheur inhabituelle : les levées et la croissance seront plus lentes que prévu ; les dates de récolte peuvent glisser de quelques jours.';
+    var p = meteo.passe, p30 = 0, n30 = 0, k = 0;
+    (p || []).filter(function (j) { return j.date < auj; }).slice(-30).forEach(function (j) { var x = normaleDe(normales, j.date); if (x) { p30 += j.pluie; n30 += x[2]; k++; } });
+    if (k >= 20 && n30 > 5) {
+      r.pluie30 = p30; r.normalePluie30 = n30;
+      var pc = Math.round(100 * p30 / n30);
+      r.textePluie = 'Pluie des 30 derniers jours : ' + Math.round(p30) + ' mm, soit ' + pc + ' % de la normale (' + Math.round(n30) + ' mm).';
+    }
+    return r;
+  }
+
+  /* ---------- Soleil et UV ---------- */
+  function niveauUV(uv) {
+    if (uv == null) return null;
+    if (uv < 3) return { niveau: 'faible', texte: 'UV faibles' };
+    if (uv < 6) return { niveau: 'modere', texte: 'UV modérés', conseil: 'Chapeau conseillé si tu jardines longtemps.' };
+    if (uv < 8) return { niveau: 'fort', texte: 'UV forts', conseil: 'Jardine plutôt avant 11 h ou après 17 h (chapeau, crème). Ombre les semis et les repiquages tout juste faits.' };
+    return { niveau: 'tres-fort', texte: 'UV très forts', conseil: 'Évite de jardiner entre 12 h et 16 h. Ombre les jeunes plants (voile, cagette) et arrose le soir.' };
+  }
+
   /**
    * Bilan d'eau d'un espace : réserve facilement utilisable (mm), consommation
    * = évapotranspiration (ET0, Open-Meteo) × coefficient de culture, recharge
@@ -930,7 +1079,7 @@
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
+    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, temperatureSol: temperatureSol, creneaux: creneaux, pluieProchaine: pluieProchaine, soif: soif, comparaisonNormale: comparaisonNormale, niveauUV: niveauUV, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };

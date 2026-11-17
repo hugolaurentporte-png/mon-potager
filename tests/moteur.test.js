@@ -303,3 +303,51 @@ test('Météo détaillée : heure par heure, pluie, nuits de gel, canicule, déc
   // Bac sous abri : jamais « attendre la pluie »
   assert.equal(M.arrosage({ id: 'c', type: 'bac', pluie: 'abri' }, cult, arr, [], pluieProche, 'tempere', t).decision.verdict, 'arroser');
 });
+
+test('Météo plus : terre, créneaux, pluie dans l’heure, soif, normales, UV', () => {
+  require('../js/meteo.js');
+  const { reponseOpenMeteo, serie } = require('./outils.js');
+  const N = (j, p, q) => globalThis.Meteo.normaliser(reponseOpenMeteo(j, p, q));
+  // Terre à 9-10 °C qui se réchauffe : radis oui, haricot plus tard, courgette pas cette semaine
+  const jours = serie('2027-04-20', [[6, 14], [6, 14], [6, 14], [7, 15], [9, 17], [11, 19], [12, 20], [13, 21], [13, 22], [14, 22]]).map((j, i) => Object.assign(j, { sol: [8, 9, 9.5, 10, 11, 12.5, 13, 13.5, 13.5, 13.5][i] }));
+  const m = N(jours);
+  const t = M.temperatureSol(m, le('2027-04-22', 10));
+  assert.equal(Math.round(t.moyenne * 10) / 10, 9.5);
+  assert.ok(t.tendance > 3);
+  const de = (id, g) => t.cultures.find(c => c.culture.id === id && c.geste === g);
+  assert.ok(de('radis', 'semis_place').ok);
+  assert.equal(M.dates.iso(de('haricot-nain', 'semis_place').date), '2027-04-25');
+  assert.equal(de('courgette', 'semis_place').date, null);
+  assert.equal(M.temperatureSol(null, le('2027-04-22')), null);
+  // Créneaux : pluie toute la journée de demain → traiter pas demain ; aujourd'hui calme
+  const pl = {}; for (let h = 0; h < 24; h++) pl['2027-04-23T' + (h < 10 ? '0' : '') + h + ':00'] = 1;
+  const c = M.creneaux(N(jours, pl), le('2027-04-22', 8));
+  const traiter = c.find(x => x.id === 'traiter');
+  assert.ok(traiter.debut && M.dates.iso(traiter.debut) === '2027-04-22', traiter.texte);
+  assert.match(traiter.texte, /^Aujourd’hui de \d+ h à \d+ h$/);
+  const recolter = M.creneaux(N(jours, pl), le('2027-04-23', 6)).find(x => x.id === 'recolter');
+  assert.ok(M.dates.iso(recolter.debut) >= '2027-04-24', 'pas de récolte le lendemain d’une journée de pluie: ' + recolter.texte);
+  assert.equal(c.length, 4);
+  // Pluie dans les 2 heures
+  const q = (debut, mm) => mm.map((x, i) => { const d = new Date(le('2027-04-22', 10).getTime() + i * 15 * 60000); return [M.dates.iso(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), x]; });
+  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0, 0, 0, 0.3, 0.6, 0.4, 0, 0])), le('2027-04-22', 10)).texte, /^Pluie à partir de 10 h 45 \(1.3 mm/);
+  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0.2, 0.3, 0, 0, 0, 0, 0, 0])), le('2027-04-22', 10)).texte, /^Il pleut en ce moment, jusqu’à 10 h 30/);
+  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0, 0, 0, 0, 0, 0, 0, 0])), le('2027-04-22', 10)).texte, /^Pas de pluie/);
+  assert.equal(M.pluieProchaine(m, le('2027-04-22', 10)), null);
+  // Soif : 30 jours secs puis humides
+  const passe = n => Array.from({ length: 31 }, (_, i) => ({ date: M.dates.iso(M.dates.ajouter(le('2027-06-01'), i)), pluie: n, et0: 4 }));
+  assert.equal(M.soif(passe(0.5), le('2027-07-01')).verdict, 'sec');
+  assert.equal(M.soif(passe(6), le('2027-07-01')).verdict, 'humide');
+  assert.equal(M.soif(passe(6), le('2027-07-01')).jours.length, 30);
+  // Normales : 10 ans à 10/20 °C → une semaine à 14/24 est 4 °C plus douce
+  const histo = []; for (let y = 2016; y <= 2025; y++) for (let d = new Date(y, 0, 1, 12); d.getFullYear() === y; d = new Date(d.getTime() + 864e5)) histo.push({ date: M.dates.iso(d), tmin: 10, tmax: 20, pluie: 2 });
+  const nor = globalThis.Meteo.calculerNormales(histo);
+  assert.deepEqual(nor['06-15'], [10, 20, 2]);
+  const chaud = N(serie('2027-06-10', [[14, 24], [14, 24], [14, 24], [14, 24], [14, 24], [14, 24], [14, 24], [14, 24]]));
+  chaud.passe = passe(1).map((j, i) => Object.assign(j, { date: M.dates.iso(M.dates.ajouter(le('2027-05-10'), i)) }));
+  const cmp = M.comparaisonNormale(chaud, nor, le('2027-06-10'));
+  assert.match(cmp.texte, /4 °C plus doux/); assert.ok(cmp.conseil);
+  assert.match(cmp.textePluie, /50 % de la normale/);
+  // UV
+  assert.equal(M.niveauUV(7).niveau, 'fort'); assert.equal(M.niveauUV(null), null);
+});

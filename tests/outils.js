@@ -1,8 +1,8 @@
 // Fabrique une réponse Open-Meteo factice (même format que l'API réelle).
 // jours : [{ date:'YYYY-MM-DD', tmin, tmax, pluie }] ; pluiesHoraires : { 'YYYY-MM-DDTHH:00': mm }
-function reponseOpenMeteo(jours, pluiesHoraires) {
+function reponseOpenMeteo(jours, pluiesHoraires, quarts) {
   pluiesHoraires = pluiesHoraires || {};
-  var heures = [], pluie = [], temp = [], proba = [], nuages = [], vent = [], codes = [];
+  var heures = [], pluie = [], temp = [], proba = [], nuages = [], vent = [], codes = [], sol = [];
   jours.forEach(function (j) {
     // Pluie du jour sans détail horaire : répartie de 13 h à 16 h (comme l'API, où l'horaire et le journalier concordent)
     var aDetail = Object.keys(pluiesHoraires).some(function (k) { return k.indexOf(j.date) === 0; });
@@ -13,13 +13,14 @@ function reponseOpenMeteo(jours, pluiesHoraires) {
       // Courbe journalière : minimum vers 6 h, maximum vers 15 h
       var x = h <= 6 ? 0.4 * (6 - h) / 6 : h <= 15 ? (h - 6) / 9 : 1 - (h - 15) / 15;
       temp.push(Math.round((j.tmin + (j.tmax - j.tmin) * Math.max(0, Math.min(1, x))) * 10) / 10);
-      proba.push(pluiesHoraires[t] ? 80 : 5); nuages.push(j.nuages == null ? 50 : j.nuages); vent.push(10); codes.push(pluiesHoraires[t] ? 61 : (j.code == null ? 2 : j.code));
+      proba.push(pluiesHoraires[t] ? 80 : 5); nuages.push(j.nuages == null ? 50 : j.nuages); vent.push(10); sol.push(j.sol != null ? j.sol : Math.round(((j.tmin + j.tmax) / 2 - 1) * 10) / 10); codes.push(pluiesHoraires[t] ? 61 : (j.code == null ? 2 : j.code));
     }
   });
   return {
     latitude: 48.85, longitude: 2.35, elevation: 42, timezone: 'Europe/Paris',
-    daily: { time: jours.map(function (j) { return j.date; }), temperature_2m_min: jours.map(function (j) { return j.tmin; }), temperature_2m_max: jours.map(function (j) { return j.tmax; }), precipitation_sum: jours.map(function (j) { return j.pluie || 0; }), precipitation_probability_max: jours.map(function (j) { return j.proba == null ? 10 : j.proba; }), wind_gusts_10m_max: jours.map(function (j) { return j.rafales == null ? 25 : j.rafales; }), weather_code: jours.map(function (j) { return j.code == null ? 2 : j.code; }), et0_fao_evapotranspiration: jours.map(function (j) { return j.et0 === undefined ? Math.round((0.15 * j.tmax - 0.5) * 10) / 10 : j.et0; }) },
-    hourly: { time: heures, precipitation: pluie, temperature_2m: temp, precipitation_probability: proba, cloud_cover: nuages, wind_speed_10m: vent, weather_code: codes }
+    daily: { time: jours.map(function (j) { return j.date; }), temperature_2m_min: jours.map(function (j) { return j.tmin; }), temperature_2m_max: jours.map(function (j) { return j.tmax; }), precipitation_sum: jours.map(function (j) { return j.pluie || 0; }), precipitation_probability_max: jours.map(function (j) { return j.proba == null ? 10 : j.proba; }), wind_gusts_10m_max: jours.map(function (j) { return j.rafales == null ? 25 : j.rafales; }), weather_code: jours.map(function (j) { return j.code == null ? 2 : j.code; }), sunshine_duration: jours.map(function (j) { return (j.soleil == null ? 6 : j.soleil) * 3600; }), daylight_duration: jours.map(function () { return 10 * 3600; }), uv_index_max: jours.map(function (j) { return j.uv == null ? 3 : j.uv; }), et0_fao_evapotranspiration: jours.map(function (j) { return j.et0 === undefined ? Math.round((0.15 * j.tmax - 0.5) * 10) / 10 : j.et0; }) },
+    hourly: { time: heures, precipitation: pluie, temperature_2m: temp, precipitation_probability: proba, cloud_cover: nuages, wind_speed_10m: vent, weather_code: codes, soil_temperature_6cm: sol },
+    minutely_15: quarts ? { time: quarts.map(function (q) { return q[0]; }), precipitation: quarts.map(function (q) { return q[1]; }) } : undefined
   };
 }
 // Série de jours à partir d'une date avec des températures données (tableau de [tmin, tmax])
