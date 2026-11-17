@@ -100,3 +100,12 @@ ou très abrité peut s'écarter de plusieurs semaines de la moyenne de la commu
 - **Décision** : « Attends la pluie » seulement si un épisode d'au moins 3 mm à 70 % de risque ou plus est prévu dans les 14 h (jamais pour un semis non levé ni sous abri).
 - **Canicule** : au moins 3 jours consécutifs ≥ 30 °C (seuil simplifié, différent des seuils départementaux officiels de vigilance).
 - **Essai vraie météo** : `node outils/essai-meteo-reel.js` (lancé automatiquement par GitHub Actions à chaque mise à jour du code). Premier essai réussi le 17/11/2026 sur Orléans, Brest, Marseille et Grenoble : Météo-France disponible sur 7 jours, pluie horaire cohérente avec la pluie journalière.
+
+## Météo, compléments (17/11/2026)
+
+- **Température de la terre** (Open-Meteo, 6 cm) : seuils minimaux de semis/plantation dans `REGLES.tempSol` (radis, laitue, carotte, oignon 8 °C ; mâche, épinard 5 ; betterave 10 ; haricot 12 ; courgette 14 ; concombre 15 ; tomate en plant 12 ; poivron 15). Valeurs courantes des guides de jardinage, **à valider**.
+- **Bons créneaux** : traiter = 6 h sans pluie, vent ≤ 15 km/h, 8-25 °C ; repiquer = 8-24 °C, temps couvert ou 3 dernières heures de jour, pas de gel la nuit suivante ; semer = air ≥ 6 °C, terre non gelée, < 15 mm les 24 h d'avant, < 5 mm les 6 h d'après ; récolter = sec depuis 18 h. Uniquement de jour (lever + 30 min à coucher − 30 min).
+- **Pluie dans les 2 heures** : `minutely_15` (AROME au quart d'heure en France).
+- **Soif** : pluie et ET0 des 30 derniers jours (Open-Meteo `past_days=31`).
+- **Normales** : moyenne 10 ans (archive Open-Meteo), fenêtre glissante de ± 7 jours ; gardées 60 jours dans le navigateur.
+- **UV** : faible < 3, modéré 3-5, fort 6-7, très fort ≥ 8 (échelle OMS).

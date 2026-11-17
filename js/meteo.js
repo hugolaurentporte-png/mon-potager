@@ -79,7 +79,7 @@
       heures.push({ t: t, pluie: v('precipitation') || 0, proba: v('precipitation_probability'), temp: v('temperature_2m'), code: v('weather_code'), vent: v('wind_speed_10m'), rafales: v('wind_gusts_10m'), humidite: v('relative_humidity_2m'), nuages: v('cloud_cover'), sol: v('soil_temperature_6cm') });
     });
     (q.time || []).forEach(function (t, i) { quarts.push({ t: t, pluie: q.precipitation ? q.precipitation[i] || 0 : 0 }); });
-    return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures, quarts: quarts };
+    return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, lon: r.longitude, jours: jours, heures: heures, quarts: quarts };
   }
 
   function lireCache() { try { return JSON.parse(localStorage.getItem(CLE_CACHE) || 'null'); } catch (e) { return null; } }

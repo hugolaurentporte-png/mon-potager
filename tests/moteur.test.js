@@ -330,9 +330,14 @@ test('Météo plus : terre, créneaux, pluie dans l’heure, soif, normales, UV'
   assert.equal(c.length, 4);
   // Pluie dans les 2 heures
   const q = (debut, mm) => mm.map((x, i) => { const d = new Date(le('2027-04-22', 10).getTime() + i * 15 * 60000); return [M.dates.iso(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), x]; });
-  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0, 0, 0, 0.3, 0.6, 0.4, 0, 0])), le('2027-04-22', 10)).texte, /^Pluie à partir de 10 h 45 \(1.3 mm/);
+  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0, 0, 0, 0.3, 0.6, 0.4, 0, 0])), le('2027-04-22', 10)).texte, /^Pluie à partir de 10 h 45, jusqu’à 11 h 30 environ \(1.3 mm/);
   assert.match(M.pluieProchaine(N(jours, {}, q(0, [0.2, 0.3, 0, 0, 0, 0, 0, 0])), le('2027-04-22', 10)).texte, /^Il pleut en ce moment, jusqu’à 10 h 30/);
   assert.match(M.pluieProchaine(N(jours, {}, q(0, [0, 0, 0, 0, 0, 0, 0, 0])), le('2027-04-22', 10)).texte, /^Pas de pluie/);
+  assert.match(M.pluieProchaine(N(jours, {}, q(0, [0.3, 0, 0.4, 0.6, 0.9, 1.5, 0.8, 0])), le('2027-04-22', 10)).texte, /^Pluie par moments jusqu’à 11 h 45 environ \(4.5 mm, la plus forte vers 11 h 15\)/);
+  // Pas de créneau la nuit : en novembre (9 h de jour), rien après 17 h
+  const nov = N(serie('2027-11-16', [[8, 14], [8, 14], [8, 14], [8, 14], [8, 14], [8, 14], [8, 14], [8, 14], [8, 14], [8, 14]]).map(j => Object.assign(j, { soleil: 3 })));
+  nov.jours.forEach(j => { j.jour = 9; });
+  M.creneaux(nov, le('2027-11-18', 8)).forEach(x => assert.ok(x.fin.getHours() <= 17 && x.debut.getHours() >= 8, x.id + ' ' + x.texte));
   assert.equal(M.pluieProchaine(m, le('2027-04-22', 10)), null);
   // Soif : 30 jours secs puis humides
   const passe = n => Array.from({ length: 31 }, (_, i) => ({ date: M.dates.iso(M.dates.ajouter(le('2027-06-01'), i)), pluie: n, et0: 4 }));

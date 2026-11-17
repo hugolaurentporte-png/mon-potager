@@ -521,18 +521,26 @@
     var tous = heuresEntre(meteo, new Date(debut.getTime() - 24 * 3600000), new Date(debut.getTime() + 8 * JOUR)).filter(function (h) { return h.temp != null; });
     var i0 = 0; while (i0 < tous.length && tous[i0].date < debut) i0++;
     var fin7 = new Date(debut.getTime() + 7 * JOUR);
+    // Heures de jour : du lever + 30 min au coucher − 30 min (midi solaire selon la longitude)
+    var dureeJour = {}; (meteo.jours || []).forEach(function (j) { if (j.jour) dureeJour[j.date] = j.jour; });
+    var lon = meteo.lon == null ? 2 : meteo.lon;
+    function bornesJour(d) {
+      var dj = dureeJour[isoDate(d)] || 12, midi = 12 - lon / 15 - d.getTimezoneOffset() / 60;
+      return { lever: midi - dj / 2 + 0.5, coucher: midi + dj / 2 - 0.5 };
+    }
+    function deJour(d) { var b = bornesJour(d), H = d.getHours(); return H >= Math.max(7, Math.ceil(b.lever)) && H + 1 <= Math.min(21, Math.floor(b.coucher) + 1) ; }
     function somme(a, b) { var s = 0; for (var k = Math.max(0, a); k < Math.min(tous.length, b); k++) s += tous[k].pluie || 0; return s; }
     function minTemp(a, b) { var m = Infinity; for (var k = a; k < Math.min(tous.length, b); k++) m = Math.min(m, tous[k].temp); return m; }
     var regles = {
       traiter: function (h, i) { return i + 6 <= tous.length && somme(i, i + 6) < 0.2 && (h.vent == null || h.vent <= 15) && (h.rafales == null || h.rafales <= 35) && h.temp >= 8 && h.temp <= 25; },
-      repiquer: function (h, i) { var H = h.date.getHours(); return h.temp >= 8 && h.temp <= 24 && ((h.nuages != null && h.nuages >= 60) || H >= 17) && somme(i, i + 2) < 1 && (h.vent == null || h.vent <= 25) && minTemp(i, i + 16) > 1; },
+      repiquer: function (h, i) { var H = h.date.getHours(); return h.temp >= 8 && h.temp <= 24 && ((h.nuages != null && h.nuages >= 60) || H >= bornesJour(h.date).coucher - 3) && somme(i, i + 2) < 1 && (h.vent == null || h.vent <= 25) && minTemp(i, i + 16) > 1; },
       semer: function (h, i) { return h.temp >= 6 && (h.sol == null || h.sol > 2) && somme(i - 24, i) < 15 && somme(i, i + 6) < 5 && (h.vent == null || h.vent <= 30); },
       recolter: function (h, i) { var H = h.date.getHours(); return H >= 10 && somme(i - 18, i + 1) < 0.2 && h.temp >= 5 && h.temp <= 28; }
     };
     return Object.keys(regles).map(function (id) {
       var run = null, best = null;
       for (var i = i0; i < tous.length && tous[i].date < fin7; i++) {
-        var h = tous[i], H = h.date.getHours(), ok = H >= 7 && H < 21 && regles[id](h, i);
+        var h = tous[i], ok = deJour(h.date) && regles[id](h, i);
         var memeJour = run && isoDate(run.fin) === isoDate(h.date);
         if (ok && run && memeJour && h.date - run.fin === 3600000) run.fin = h.date;
         else if (ok) run = { debut: h.date, fin: h.date };
@@ -542,7 +550,7 @@
       var R = REGLES.creneaux[id], r = { id: id, titre: R.titre, icone: R.icone, pourquoi: R.pourquoi };
       if (best) {
         // prolonge le créneau trouvé jusqu'à sa vraie fin
-        for (var k = 0; k < tous.length; k++) if (tous[k].date - best.fin === 3600000 && isoDate(tous[k].date) === isoDate(best.fin) && tous[k].date.getHours() < 21 && regles[id](tous[k], k)) best.fin = tous[k].date;
+        for (var k = 0; k < tous.length; k++) if (tous[k].date - best.fin === 3600000 && isoDate(tous[k].date) === isoDate(best.fin) && deJour(tous[k].date) && regles[id](tous[k], k)) best.fin = tous[k].date;
         r.debut = best.debut; r.fin = new Date(best.fin.getTime() + 3600000);
         r.texte = capitaliser(nomJourCourt(r.debut, maintenant)) + ' de ' + hMin(r.debut) + ' à ' + hMin(r.fin);
       } else r.texte = 'Pas de bon créneau dans les 7 prochains jours';
@@ -560,11 +568,13 @@
     var pluvieux = qs.filter(function (q) { return q.pluie >= seuil; });
     var res = { quarts: qs, total: total }, finQ = function (q) { return new Date(q.date.getTime() + 15 * 60000); };
     if (!pluvieux.length) res.texte = 'Pas de pluie prévue dans les 2 prochaines heures : tu as le temps d’aller au jardin.';
-    else if (qs[0].pluie >= seuil) {
-      var sec = qs.filter(function (q) { return q.pluie < seuil; })[0];
-      res.texte = sec ? 'Il pleut en ce moment, jusqu’à ' + hMin(sec.date) + ' environ (' + arrondi(total) + ' mm).' : 'Pluie pendant les 2 prochaines heures (' + arrondi(total) + ' mm).';
-    } else {
-      res.texte = 'Pluie à partir de ' + hMin(pluvieux[0].date) + ' (' + arrondi(total) + ' mm d’ici ' + hMin(finQ(qs[qs.length - 1])) + ').';
+    else {
+      var dernier = pluvieux[pluvieux.length - 1], premier = pluvieux[0];
+      var trou = qs.some(function (q) { return q.date > premier.date && q.date < dernier.date && q.pluie < seuil; });
+      var jusque = dernier === qs[qs.length - 1] ? 'pendant les 2 prochaines heures' : 'jusqu’à ' + hMin(finQ(dernier)) + ' environ';
+      var fort = qs.reduce(function (a, q) { return q.pluie > a.pluie ? q : a; });
+      if (qs[0].pluie >= seuil) res.texte = (trou ? 'Pluie par moments ' : 'Il pleut en ce moment, ') + jusque + ' (' + arrondi(total) + ' mm' + (trou ? ', la plus forte vers ' + hMin(fort.date) : '') + ').';
+      else res.texte = 'Pluie ' + (trou ? 'par moments ' : '') + 'à partir de ' + hMin(premier.date) + ', ' + jusque + ' (' + arrondi(total) + ' mm).';
     }
     return res;
   }

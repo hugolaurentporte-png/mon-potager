@@ -165,7 +165,7 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   // Prochaines 48 h, « Faut-il arroser ? », puis un jour en détail heure par heure
   assert.match(await page.innerText('[data-test="48h"]'), /minimum/);
   assert.match(await page.innerText('[data-test="eau-bacs"]'), /Eau disponible estimée/);
-  assert.match(await page.innerText('[data-test="pluie-heure"]'), /Pluie à partir de 9 h 30 \(1 mm/);
+  assert.match(await page.innerText('[data-test="pluie-heure"]'), /Pluie à partir de 9 h 30, jusqu’à 10 h 15 environ \(1 mm/);
   assert.equal(await page.locator('[data-test="creneaux"] .creneau').count(), 4);
   assert.match(await page.innerText('[data-test="terre"]'), /°C/);
   assert.match(await page.innerText('[data-test="soleil"]'), /UV 3/);
