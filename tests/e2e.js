@@ -49,7 +49,7 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   await ctx.route('https://api.open-meteo.com/v1/forecast**', r => meteoCourante ? r.fulfill({ json: meteoCourante }) : r.abort('failed'));
 
   const heure = async (iso) => { await page.clock.setFixedTime(new Date(iso)); };
-  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v2')); await page.reload(); await page.waitForTimeout(150); };
+  const ouvrir = async (hash) => { await page.goto(base + hash); await page.evaluate(() => localStorage.removeItem('potager.meteo.v3')); await page.reload(); await page.waitForTimeout(150); };
   const texte = async (sel) => (await page.locator(sel).first().innerText());
   const capture = async (nom) => { if (CAPTURES) await page.screenshot({ path: path.join(CAPTURES, nom + '.png'), fullPage: true }); };
 
@@ -156,7 +156,22 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   assert.match(ecranM, /Forte pluie : 25 mm/);
   assert.match(ecranM, /Orage possible/);
   await capture('meteo');
+  // Prochaines 48 h, « Faut-il arroser ? », puis un jour en détail heure par heure
+  assert.match(await page.innerText('[data-test="48h"]'), /minimum/);
+  assert.match(await page.innerText('[data-test="eau-bacs"]'), /Eau disponible estimée/);
+  await page.click('.prevision >> nth=1');
+  await page.waitForSelector('[data-test="heures"]');
+  assert.match(await page.innerText('[data-test="jour-titre"]'), /Mercredi 26 mai/);
+  assert.equal(await page.locator('.heure:not(.entete-h)').count(), 24);
+  assert.match(await page.innerText('main'), /Prévision très fiable/);
+  assert.match(await page.innerText('main'), /Gelée blanche|gelée blanche/);
+  await capture('meteo-jour');
+  await page.click('.jour-nav a >> text=›');
+  assert.match(await page.innerText('[data-test="jour-titre"]'), /Jeudi 27 mai/);
+  assert.match(await page.innerText('main'), /Quand va-t-il pleuvoir/);
   await page.goto(base + '#/');
+  assert.match(await page.innerText('[data-test="jardin-jour"]'), /Aujourd’hui au jardin/);
+  await capture('accueil-jardin-jour');
   assert.match(await page.innerText('[data-test="alertes-accueil"]'), /gelée blanche/);
   await page.goto(urlTomate);
   await heure('2027-05-21T09:00:00+02:00');

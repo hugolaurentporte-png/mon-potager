@@ -110,7 +110,7 @@ ul { padding-left: 20px; margin: 4px 0; } li { margin: 4px 0; }
 .alerte-ligne.alerte { border-left-color: var(--alerte-bord); }
 .alerte-ligne.info { border-left-color: var(--meteo-bord); }
 .previsions { display: grid; gap: 0; }
-.prevision { display: grid; grid-template-columns: minmax(0, 1.5fr) 2rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .9fr); align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid var(--bord); font-variant-numeric: tabular-nums; font-size: .92rem; }
+.prevision { display: grid; grid-template-columns: minmax(0, 1.5fr) 2rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .9fr) .8rem; color: inherit; text-decoration: none; min-height: 44px; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid var(--bord); font-variant-numeric: tabular-nums; font-size: .92rem; }
 .prevision:first-child { border-top: 0; }
 .pc { font-size: 1.3rem; text-align: center; }
 .pv { color: var(--doux); font-size: .85rem; }
@@ -120,3 +120,28 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .probleme:first-child { border-top: 0; }
 .probleme summary { color: var(--texte); }
 .choix-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0 12px; }
+
+.prevision:hover, .prevision:focus-visible { background: var(--calme); }
+.pf { color: var(--doux); font-size: 1.2rem; text-align: right; }
+.jardin-jour { list-style: none; padding: 0; margin: 0; }
+.jardin-jour li { padding: 6px 0; border-top: 1px solid var(--bord); }
+.jardin-jour li:first-child { border-top: 0; }
+.verdict { margin: 6px 0 4px; font-size: 1.02rem; }
+.v-arroser strong { color: var(--froid); } .v-attendre strong { color: var(--vert-2); } .v-froid strong { color: var(--froid); } .v-chaud strong { color: var(--retard); }
+.jauge { height: 8px; border-radius: 4px; background: var(--n0); overflow: hidden; margin: 6px 0 2px; max-width: 320px; }
+.jauge i { display: block; height: 100%; background: var(--froid); border-radius: 4px; }
+.jauge.sec i { background: var(--retard); } .jauge.moyen i { background: var(--alerte-bord); }
+.eau-bac { border-top: 1px solid var(--bord); padding: 8px 0; } .eau-bac:first-of-type { border-top: 0; }
+.eau-bac p { margin: 2px 0; }
+.jour-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0; font-size: .92rem; }
+.jour-nav a { font-weight: 600; text-decoration: none; padding: 8px 0; min-width: 4.5rem; }
+.jour-nav a:last-child { text-align: right; }
+.jour-nav strong { text-align: center; flex: 1; }
+.jour-grand { font-size: 1.6rem; margin: 0 0 6px; }
+.heures { display: grid; font-variant-numeric: tabular-nums; font-size: .9rem; }
+.heure { display: grid; grid-template-columns: 2.6rem 1.8rem 2.6rem minmax(0, 1.4fr) minmax(0, 1fr) 3rem; gap: 4px; align-items: center; padding: 5px 0; border-top: 1px solid var(--bord); }
+.heure.entete-h { color: var(--doux); font-size: .78rem; border-top: 0; }
+.heure.passe { opacity: .5; }
+.heure.gel { background: var(--meteo); }
+.hc { font-size: 1.15rem; text-align: center; } .hu, .hv { color: var(--doux); }
+.detail-alerte { margin: 2px 0; }

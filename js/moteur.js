@@ -418,6 +418,97 @@
     return (c.parcours[p.mode] || []).map(function (s) { return s.etape; }).filter(function (e) { return e !== 'recolte'; });
   }
 
+  /* ---------- Météo détaillée ---------- */
+  function heuresEntre(meteo, debut, fin) {
+    if (!meteo || !meteo.heures) return [];
+    return meteo.heures.filter(function (h) { var t = dateHeure(h.t); return t >= debut && t < fin; }).map(function (h) { return Object.assign({ date: dateHeure(h.t) }, h); });
+  }
+  function heureTxt(d) { return d.getHours() + ' h'; }
+  /** Heures d'une journée (pour le détail d'un jour) */
+  function heuresDuJour(meteo, iso) {
+    var d = lireDate(iso); d.setHours(0, 0, 0, 0);
+    return heuresEntre(meteo, d, new Date(d.getTime() + JOUR)).map(function (h) { return Object.assign(h, ciel(h.code)); });
+  }
+  /** Épisodes de pluie à venir (heures consécutives avec pluie) sur `heures` heures */
+  function episodesPluie(meteo, maintenant, duree) {
+    var hs = heuresEntre(meteo, maintenant, new Date(maintenant.getTime() + (duree || 48) * 3600000));
+    var eps = [], cur = null;
+    hs.forEach(function (h) {
+      if ((h.pluie || 0) >= 0.2) {
+        if (!cur) { cur = { debut: h.date, fin: h.date, total: 0, probaMax: 0 }; eps.push(cur); }
+        cur.fin = h.date; cur.total += h.pluie; cur.probaMax = Math.max(cur.probaMax, h.proba || 0);
+      } else if (cur && (h.date - cur.fin) >= 2 * 3600000) cur = null;
+    });
+    return eps.filter(function (e) { return e.total >= 0.5; }).map(function (e) {
+      e.fin = new Date(e.fin.getTime() + 3600000);
+      var n = ecartJours(maintenant, e.debut), jour = n === 0 ? 'aujourd’hui' : n === 1 ? 'demain' : JOURS[e.debut.getDay()];
+      e.texte = 'Pluie ' + jour + ' de ' + heureTxt(e.debut) + ' à ' + heureTxt(e.fin) + ' : ' + arrondi(e.total) + ' mm' + (e.probaMax ? ' (' + e.probaMax + ' % de risque)' : '');
+      return e;
+    });
+  }
+  /** Prochaines nuits : température minimale, heure, durée du gel */
+  function nuits(meteo, maintenant, nb) {
+    var res = [];
+    for (var i = 0; i < (nb || 3); i++) {
+      var soir = jourDe(ajouterJours(maintenant, i)); soir.setHours(18, 0, 0, 0);
+      var matin = new Date(soir.getTime() + 16 * 3600000);
+      if (matin <= maintenant) continue;
+      var hs = heuresEntre(meteo, soir, matin).filter(function (h) { return h.temp != null; });
+      if (hs.length < 8) continue;
+      var min = hs.reduce(function (a, h) { return h.temp < a.temp ? h : a; });
+      var gel = hs.filter(function (h) { return h.temp <= 0; });
+      var claire = hs.filter(function (h) { return h.nuages != null && h.nuages < 30; }).length >= hs.length / 2;
+      res.push({ soir: soir, min: min.temp, heureMin: min.date, debutGel: gel[0] && gel[0].date, finGel: gel.length ? new Date(gel[gel.length - 1].date.getTime() + 3600000) : null, heuresGel: gel.length, claire: claire,
+        nom: i === 0 ? 'cette nuit' : i === 1 ? 'demain soir' : JOURS[soir.getDay()] + ' soir' });
+    }
+    return res;
+  }
+  /** Canicule : au moins 3 jours ≥ 30 °C consécutifs dans les prévisions */
+  function canicule(meteo, maintenant) {
+    var auj = isoDate(jourDe(maintenant)), js = (meteo && meteo.jours || []).filter(function (j) { return j.date >= auj; }), serie = [], best = [];
+    js.forEach(function (j) { if (j.tmax >= 30) { serie.push(j); if (serie.length > best.length) best = serie.slice(); } else serie = []; });
+    return best.length >= 3 ? { debut: lireDate(best[0].date), jours: best.length, tmax: Math.max.apply(null, best.map(function (j) { return j.tmax; })), nuitsChaudes: best.filter(function (j) { return j.tmin >= 20; }).length } : null;
+  }
+
+  /**
+   * Bilan d'eau d'un espace : réserve facilement utilisable (mm), consommation
+   * = évapotranspiration (ET0, Open-Meteo) × coefficient de culture, recharge
+   * par la pluie tombée (si l'espace y est exposé). Renvoie null sans ET0.
+   */
+  REGLES.bilan = {
+    reserve: { bac: { terreau: 7, defaut: 6 }, pleine_terre: { limoneux: 18, argileux: 25, sableux: 9, caillouteux: 11, terreau: 14, defaut: 15 } },
+    kc: { faible: 0.6, moyen: 0.85, eleve: 1.0 }, majorationBac: 1.2, efficacitePluieBac: 0.8, seuilVerifier: 0.75, reserveSemis: 3
+  };
+  function bilanEau(espace, kc, fStade, reference, meteo, maintenant, semis) {
+    if (!meteo || !meteo.jours || !meteo.jours.some(function (j) { return j.et0 != null; })) return null;
+    var B = REGLES.bilan, type = espace.type === 'bac' ? 'bac' : 'pleine_terre';
+    var reserve = (B.reserve[type][espace.sol] || B.reserve[type].defaut) * Math.max(0.4, Math.min(1, fStade));
+    if (semis) reserve = Math.min(reserve, B.reserveSemis); // graines : seule la surface compte
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation];
+    var conso = kc * (type === 'bac' ? B.majorationBac : 1) / (o ? o.facteurArrosage : 1);
+    var et0 = {}; meteo.jours.forEach(function (j) { et0[j.date] = j.et0; });
+    var pluie = {}; (meteo.heures || []).forEach(function (h) { pluie[h.t.slice(0, 13)] = h.pluie || 0; });
+    var expose = espace.pluie !== 'abri', eff = type === 'bac' ? B.efficacitePluieBac : 1;
+    var deficit = 0, t = new Date(reference.getTime()), etat = null, prochaine = null, fin = ajouterJours(maintenant, 8), recue = 0;
+    t.setMinutes(0, 0, 0); t = new Date(t.getTime() + 3600000);
+    var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    while (t <= fin) {
+      var cle = isoDate(t), h = t.getHours();
+      var e = et0[cle]; if (e == null) e = et0[isoDate(ajouterJours(t, -1))] || 3;
+      if (h >= 8 && h < 20) deficit += e / 12 * conso;
+      if (expose && t <= maintenant) {
+        var mm = pluie[cle + 'T' + p2(h)] || 0;
+        if (mm) { recue += mm; deficit = Math.max(0, deficit - mm * eff); }
+      }
+      if (t <= maintenant) etat = deficit;
+      if (t > maintenant && !prochaine && deficit >= reserve * B.seuilVerifier) prochaine = new Date(t.getTime());
+      t = new Date(t.getTime() + 3600000);
+    }
+    if (etat == null) etat = 0; // arrosé à l’instant
+    if (etat >= reserve * B.seuilVerifier) prochaine = new Date(maintenant.getTime());
+    return { reserve: reserve, deficit: etat, pourcentEau: Math.max(0, Math.round(100 * (1 - etat / reserve))), prochaine: prochaine, pluieRecue: recue };
+  }
+
   /* ---------- Arrosage ---------- */
   function facteurChaleur(tmax) {
     var t = REGLES.arrosage.chaleur;
@@ -440,7 +531,7 @@
     res.dernierArrosage = derniers[0] || null;
     if (!actives || !actives.length) { res.statut = 'vide'; res.conseil = 'Aucune culture en cours : pas d’arrosage à prévoir.'; return res; }
 
-    var fStade = Infinity, aArroser = [], stop = [];
+    var fStade = Infinity, aArroser = [], stop = [], kcMax = 0, semisNonLeve = false;
     actives.forEach(function (p) {
       var c = culture(p.cultureId), s = suivi(p, zoneId, maintenant, meteo), f = R.facteurBesoin[c.arrosage.besoin] || 1;
       var pro = s.prochaine && s.prochaine.etape;
@@ -452,6 +543,10 @@
       else if (c.arrosage.besoin === 'eleve' && (pro === 'fruits' || pro === 'recolte' || s.statut === 'en_recolte')) { f = Math.min(f, R.facteurStade.fructificationGourmande); res.raisons.push(c.nom + ' en production : gros besoin d’eau'); }
       aArroser.push(c.nom);
       fStade = Math.min(fStade, f);
+      var k = REGLES.bilan.kc[c.arrosage.besoin] || 0.85;
+      if (c.arrosage.besoin === 'eleve' && (pro === 'fruits' || pro === 'recolte' || s.statut === 'en_recolte')) k = 1.1;
+      kcMax = Math.max(kcMax, k);
+      if (pro === 'levee' && p.mode !== 'plant') semisNonLeve = true;
     });
     if (stop.length) res.raisons.push(stop.join(', ') + ' : ne plus arroser, la récolte approche');
     if (!aArroser.length) { res.statut = 'pas_arroser'; res.conseil = 'Ne plus arroser : la récolte approche (meilleure conservation).'; return res; }
@@ -504,6 +599,16 @@
     }
     var prochaine = new Date(refEffective.getTime() + intervalle * JOUR * (1 + 0.5 * Math.min(1, partielle / R.seuilPluie[type])));
 
+    // Bilan d'eau réel si l'évapotranspiration est disponible (remplace l'estimation simple)
+    var bilan = bilanEau(espace, kcMax || 0.85, fStade, reference, meteo, maintenant, semisNonLeve);
+    if (bilan) {
+      res.bilan = bilan;
+      var plusTard = new Date(maintenant.getTime() + R.intervalleMax * JOUR);
+      prochaine = bilan.prochaine && bilan.prochaine < plusTard ? bilan.prochaine : plusTard;
+      res.raisons = res.raisons.filter(function (r) { return !/chaleur \(|temps frais|compte comme un arrosage|prise en compte en partie/.test(r); });
+      res.raisons.unshift('calcul : évaporation mesurée depuis le dernier arrosage' + (espace.pluie === 'abri' ? '' : ' moins la pluie tombée'));
+      if (espace.pluie !== 'abri' && bilan.pluieRecue >= 1) res.raisons.push('pluie récente (' + arrondi(bilan.pluieRecue) + ' mm) : la terre a été réhumidifiée');
+    }
     // « Terre encore humide »
     var dernierReport = (reports || []).map(function (r) { return new Date(r.date); }).filter(function (d) { return d > refEffective; }).sort(function (a, b) { return b - a; })[0];
     if (dernierReport) {
@@ -532,7 +637,25 @@
       res.conseil = 'Prochaine vérification : ' + quand(prochaine, maintenant) + '.';
       if (annoncee >= R.pluieAnnonceeSignificative) res.conseil += ' Pluie annoncée (' + arrondi(annoncee) + ' mm) : elle sera comptée une fois tombée.';
     }
+    res.decision = decisionArrosage(res, espace, meteo, maintenant, semisNonLeve);
     return res;
+  }
+  /** Verdict court et clair : arroser, attendre la pluie, pas besoin, à surveiller */
+  function decisionArrosage(res, espace, meteo, maintenant, semisNonLeve) {
+    var lieu = espace.type === 'bac' ? 'le bac' : 'la parcelle';
+    var eps = espace.pluie === 'abri' ? [] : episodesPluie(meteo, maintenant, 14);
+    var pluieSure = eps.filter(function (e) { return e.total >= 3 && (e.probaMax == null || e.probaMax === 0 || e.probaMax >= 70); })[0];
+    if (res.statut === 'a_verifier') {
+      if (pluieSure && !semisNonLeve) return { verdict: 'attendre', icone: '🌧️', titre: 'Attends la pluie', texte: pluieSure.texte + '. Si la terre n’est sèche qu’en surface, la pluie suffira ; arrose seulement si elle est sèche en profondeur.' };
+      return { verdict: 'arroser', icone: '💧', titre: 'Arrose ' + lieu, texte: 'Vérifie la terre avec le doigt : si elle est sèche sur 2-3 cm, arrose au pied, de préférence le soir ou tôt le matin.' };
+    }
+    if (res.statut === 'ok') {
+      var h = (res.prochaine - maintenant) / 3600000;
+      if (h <= 24) return { verdict: 'surveiller', icone: '👀', titre: 'Pas encore', texte: 'À vérifier ' + quand(res.prochaine, maintenant) + '.' + (pluieSure ? ' ' + pluieSure.texte + '.' : '') };
+      return { verdict: 'non', icone: '✅', titre: 'Pas besoin d’arroser', texte: 'Prochaine vérification ' + quand(res.prochaine, maintenant) + '.' };
+    }
+    if (res.statut === 'pas_arroser') return { verdict: 'non', icone: '🚫', titre: 'Ne pas arroser', texte: res.conseil };
+    return null;
   }
   function arrondi(x) { return Math.round(x * 10) / 10; }
 
@@ -595,9 +718,26 @@
         concerne: sensibles
       });
     }
+    // Détail horaire du gel (prochaines nuits), si les prévisions horaires sont là
+    var lesNuits = nuits(meteo, maintenant, 3), nuitGel = lesNuits.filter(function (n) { return n.min <= A.geleeBlanche; })[0];
+    if (nuitGel) {
+      var g0 = res.filter(function (a) { return a.type === 'gel'; })[0];
+      var detail = nuitGel.heuresGel ? 'Gel ' + nuitGel.nom + ' de ' + heureTxt(nuitGel.debutGel) + ' à ' + heureTxt(nuitGel.finGel) + ', minimum ' + fmtT(nuitGel.min) + ' vers ' + heureTxt(nuitGel.heureMin) + '.'
+        : 'Minimum ' + fmtT(nuitGel.min) + ' ' + nuitGel.nom + ' vers ' + heureTxt(nuitGel.heureMin) + (nuitGel.claire ? ', ciel dégagé : gelée blanche probable au sol.' : '.');
+      if (g0) { g0.detail = detail; g0.conseil = 'Avant 19 h, ' + g0.conseil.charAt(0).toLowerCase() + g0.conseil.slice(1); }
+    }
+    // Canicule
+    var can = canicule(meteo, maintenant);
+    if (can) res.push({
+      type: 'canicule', gravite: 'alerte', date: isoDate(can.debut), quand: 'à partir de ' + JOURS[can.debut.getDay()] + ' ' + can.debut.getDate(),
+      titre: 'Épisode de chaleur : ' + can.jours + ' jours à 30 °C ou plus (jusqu’à ' + fmtT(can.tmax) + ')',
+      detail: can.nuitsChaudes ? can.nuitsChaudes + ' nuit' + (can.nuitsChaudes > 1 ? 's' : '') + ' à 20 °C ou plus : les plantes ne récupèrent pas la nuit.' : '',
+      conseil: 'La veille : paille épais et arrose copieusement au pied. Pendant : arrose tôt le matin, vérifie les bacs matin et soir, ombre salades et semis aux heures chaudes, ne sème ni ne plante.',
+      concerne: noms(function () { return true; })
+    });
     // Chaleur
     var chaud = futurs.reduce(function (a, j) { return j.tmax > a.tmax ? j : a; });
-    if (chaud.tmax >= A.chaleur) {
+    if (chaud.tmax >= A.chaleur && !can) {
       res.push({
         type: 'chaleur', gravite: chaud.tmax >= A.chaleurForte ? 'alerte' : 'attention', date: chaud.date, quand: quandTxt(chaud),
         titre: 'Forte chaleur : ' + fmtT(chaud.tmax),
@@ -790,7 +930,7 @@
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
+    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };

@@ -113,7 +113,7 @@ ul { padding-left: 20px; margin: 4px 0; } li { margin: 4px 0; }
 .alerte-ligne.alerte { border-left-color: var(--alerte-bord); }
 .alerte-ligne.info { border-left-color: var(--meteo-bord); }
 .previsions { display: grid; gap: 0; }
-.prevision { display: grid; grid-template-columns: minmax(0, 1.5fr) 2rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .9fr); align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid var(--bord); font-variant-numeric: tabular-nums; font-size: .92rem; }
+.prevision { display: grid; grid-template-columns: minmax(0, 1.5fr) 2rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .9fr) .8rem; color: inherit; text-decoration: none; min-height: 44px; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid var(--bord); font-variant-numeric: tabular-nums; font-size: .92rem; }
 .prevision:first-child { border-top: 0; }
 .pc { font-size: 1.3rem; text-align: center; }
 .pv { color: var(--doux); font-size: .85rem; }
@@ -123,6 +123,31 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .probleme:first-child { border-top: 0; }
 .probleme summary { color: var(--texte); }
 .choix-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0 12px; }
+
+.prevision:hover, .prevision:focus-visible { background: var(--calme); }
+.pf { color: var(--doux); font-size: 1.2rem; text-align: right; }
+.jardin-jour { list-style: none; padding: 0; margin: 0; }
+.jardin-jour li { padding: 6px 0; border-top: 1px solid var(--bord); }
+.jardin-jour li:first-child { border-top: 0; }
+.verdict { margin: 6px 0 4px; font-size: 1.02rem; }
+.v-arroser strong { color: var(--froid); } .v-attendre strong { color: var(--vert-2); } .v-froid strong { color: var(--froid); } .v-chaud strong { color: var(--retard); }
+.jauge { height: 8px; border-radius: 4px; background: var(--n0); overflow: hidden; margin: 6px 0 2px; max-width: 320px; }
+.jauge i { display: block; height: 100%; background: var(--froid); border-radius: 4px; }
+.jauge.sec i { background: var(--retard); } .jauge.moyen i { background: var(--alerte-bord); }
+.eau-bac { border-top: 1px solid var(--bord); padding: 8px 0; } .eau-bac:first-of-type { border-top: 0; }
+.eau-bac p { margin: 2px 0; }
+.jour-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0; font-size: .92rem; }
+.jour-nav a { font-weight: 600; text-decoration: none; padding: 8px 0; min-width: 4.5rem; }
+.jour-nav a:last-child { text-align: right; }
+.jour-nav strong { text-align: center; flex: 1; }
+.jour-grand { font-size: 1.6rem; margin: 0 0 6px; }
+.heures { display: grid; font-variant-numeric: tabular-nums; font-size: .9rem; }
+.heure { display: grid; grid-template-columns: 2.6rem 1.8rem 2.6rem minmax(0, 1.4fr) minmax(0, 1fr) 3rem; gap: 4px; align-items: center; padding: 5px 0; border-top: 1px solid var(--bord); }
+.heure.entete-h { color: var(--doux); font-size: .78rem; border-top: 0; }
+.heure.passe { opacity: .5; }
+.heure.gel { background: var(--meteo); }
+.hc { font-size: 1.15rem; text-align: center; } .hu, .hv { color: var(--doux); }
+.detail-alerte { margin: 2px 0; }
 </style>
 <main id="app" aria-live="polite"></main>
   <nav class="nav" aria-label="Navigation principale">
@@ -1870,6 +1895,97 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     return (c.parcours[p.mode] || []).map(function (s) { return s.etape; }).filter(function (e) { return e !== 'recolte'; });
   }
 
+  /* ---------- Météo détaillée ---------- */
+  function heuresEntre(meteo, debut, fin) {
+    if (!meteo || !meteo.heures) return [];
+    return meteo.heures.filter(function (h) { var t = dateHeure(h.t); return t >= debut && t < fin; }).map(function (h) { return Object.assign({ date: dateHeure(h.t) }, h); });
+  }
+  function heureTxt(d) { return d.getHours() + ' h'; }
+  /** Heures d'une journée (pour le détail d'un jour) */
+  function heuresDuJour(meteo, iso) {
+    var d = lireDate(iso); d.setHours(0, 0, 0, 0);
+    return heuresEntre(meteo, d, new Date(d.getTime() + JOUR)).map(function (h) { return Object.assign(h, ciel(h.code)); });
+  }
+  /** Épisodes de pluie à venir (heures consécutives avec pluie) sur `heures` heures */
+  function episodesPluie(meteo, maintenant, duree) {
+    var hs = heuresEntre(meteo, maintenant, new Date(maintenant.getTime() + (duree || 48) * 3600000));
+    var eps = [], cur = null;
+    hs.forEach(function (h) {
+      if ((h.pluie || 0) >= 0.2) {
+        if (!cur) { cur = { debut: h.date, fin: h.date, total: 0, probaMax: 0 }; eps.push(cur); }
+        cur.fin = h.date; cur.total += h.pluie; cur.probaMax = Math.max(cur.probaMax, h.proba || 0);
+      } else if (cur && (h.date - cur.fin) >= 2 * 3600000) cur = null;
+    });
+    return eps.filter(function (e) { return e.total >= 0.5; }).map(function (e) {
+      e.fin = new Date(e.fin.getTime() + 3600000);
+      var n = ecartJours(maintenant, e.debut), jour = n === 0 ? 'aujourd’hui' : n === 1 ? 'demain' : JOURS[e.debut.getDay()];
+      e.texte = 'Pluie ' + jour + ' de ' + heureTxt(e.debut) + ' à ' + heureTxt(e.fin) + ' : ' + arrondi(e.total) + ' mm' + (e.probaMax ? ' (' + e.probaMax + ' % de risque)' : '');
+      return e;
+    });
+  }
+  /** Prochaines nuits : température minimale, heure, durée du gel */
+  function nuits(meteo, maintenant, nb) {
+    var res = [];
+    for (var i = 0; i < (nb || 3); i++) {
+      var soir = jourDe(ajouterJours(maintenant, i)); soir.setHours(18, 0, 0, 0);
+      var matin = new Date(soir.getTime() + 16 * 3600000);
+      if (matin <= maintenant) continue;
+      var hs = heuresEntre(meteo, soir, matin).filter(function (h) { return h.temp != null; });
+      if (hs.length < 8) continue;
+      var min = hs.reduce(function (a, h) { return h.temp < a.temp ? h : a; });
+      var gel = hs.filter(function (h) { return h.temp <= 0; });
+      var claire = hs.filter(function (h) { return h.nuages != null && h.nuages < 30; }).length >= hs.length / 2;
+      res.push({ soir: soir, min: min.temp, heureMin: min.date, debutGel: gel[0] && gel[0].date, finGel: gel.length ? new Date(gel[gel.length - 1].date.getTime() + 3600000) : null, heuresGel: gel.length, claire: claire,
+        nom: i === 0 ? 'cette nuit' : i === 1 ? 'demain soir' : JOURS[soir.getDay()] + ' soir' });
+    }
+    return res;
+  }
+  /** Canicule : au moins 3 jours ≥ 30 °C consécutifs dans les prévisions */
+  function canicule(meteo, maintenant) {
+    var auj = isoDate(jourDe(maintenant)), js = (meteo && meteo.jours || []).filter(function (j) { return j.date >= auj; }), serie = [], best = [];
+    js.forEach(function (j) { if (j.tmax >= 30) { serie.push(j); if (serie.length > best.length) best = serie.slice(); } else serie = []; });
+    return best.length >= 3 ? { debut: lireDate(best[0].date), jours: best.length, tmax: Math.max.apply(null, best.map(function (j) { return j.tmax; })), nuitsChaudes: best.filter(function (j) { return j.tmin >= 20; }).length } : null;
+  }
+
+  /**
+   * Bilan d'eau d'un espace : réserve facilement utilisable (mm), consommation
+   * = évapotranspiration (ET0, Open-Meteo) × coefficient de culture, recharge
+   * par la pluie tombée (si l'espace y est exposé). Renvoie null sans ET0.
+   */
+  REGLES.bilan = {
+    reserve: { bac: { terreau: 7, defaut: 6 }, pleine_terre: { limoneux: 18, argileux: 25, sableux: 9, caillouteux: 11, terreau: 14, defaut: 15 } },
+    kc: { faible: 0.6, moyen: 0.85, eleve: 1.0 }, majorationBac: 1.2, efficacitePluieBac: 0.8, seuilVerifier: 0.75, reserveSemis: 3
+  };
+  function bilanEau(espace, kc, fStade, reference, meteo, maintenant, semis) {
+    if (!meteo || !meteo.jours || !meteo.jours.some(function (j) { return j.et0 != null; })) return null;
+    var B = REGLES.bilan, type = espace.type === 'bac' ? 'bac' : 'pleine_terre';
+    var reserve = (B.reserve[type][espace.sol] || B.reserve[type].defaut) * Math.max(0.4, Math.min(1, fStade));
+    if (semis) reserve = Math.min(reserve, B.reserveSemis); // graines : seule la surface compte
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation];
+    var conso = kc * (type === 'bac' ? B.majorationBac : 1) / (o ? o.facteurArrosage : 1);
+    var et0 = {}; meteo.jours.forEach(function (j) { et0[j.date] = j.et0; });
+    var pluie = {}; (meteo.heures || []).forEach(function (h) { pluie[h.t.slice(0, 13)] = h.pluie || 0; });
+    var expose = espace.pluie !== 'abri', eff = type === 'bac' ? B.efficacitePluieBac : 1;
+    var deficit = 0, t = new Date(reference.getTime()), etat = null, prochaine = null, fin = ajouterJours(maintenant, 8), recue = 0;
+    t.setMinutes(0, 0, 0); t = new Date(t.getTime() + 3600000);
+    var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    while (t <= fin) {
+      var cle = isoDate(t), h = t.getHours();
+      var e = et0[cle]; if (e == null) e = et0[isoDate(ajouterJours(t, -1))] || 3;
+      if (h >= 8 && h < 20) deficit += e / 12 * conso;
+      if (expose && t <= maintenant) {
+        var mm = pluie[cle + 'T' + p2(h)] || 0;
+        if (mm) { recue += mm; deficit = Math.max(0, deficit - mm * eff); }
+      }
+      if (t <= maintenant) etat = deficit;
+      if (t > maintenant && !prochaine && deficit >= reserve * B.seuilVerifier) prochaine = new Date(t.getTime());
+      t = new Date(t.getTime() + 3600000);
+    }
+    if (etat == null) etat = 0; // arrosé à l’instant
+    if (etat >= reserve * B.seuilVerifier) prochaine = new Date(maintenant.getTime());
+    return { reserve: reserve, deficit: etat, pourcentEau: Math.max(0, Math.round(100 * (1 - etat / reserve))), prochaine: prochaine, pluieRecue: recue };
+  }
+
   /* ---------- Arrosage ---------- */
   function facteurChaleur(tmax) {
     var t = REGLES.arrosage.chaleur;
@@ -1892,7 +2008,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     res.dernierArrosage = derniers[0] || null;
     if (!actives || !actives.length) { res.statut = 'vide'; res.conseil = 'Aucune culture en cours : pas d’arrosage à prévoir.'; return res; }
 
-    var fStade = Infinity, aArroser = [], stop = [];
+    var fStade = Infinity, aArroser = [], stop = [], kcMax = 0, semisNonLeve = false;
     actives.forEach(function (p) {
       var c = culture(p.cultureId), s = suivi(p, zoneId, maintenant, meteo), f = R.facteurBesoin[c.arrosage.besoin] || 1;
       var pro = s.prochaine && s.prochaine.etape;
@@ -1904,6 +2020,10 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
       else if (c.arrosage.besoin === 'eleve' && (pro === 'fruits' || pro === 'recolte' || s.statut === 'en_recolte')) { f = Math.min(f, R.facteurStade.fructificationGourmande); res.raisons.push(c.nom + ' en production : gros besoin d’eau'); }
       aArroser.push(c.nom);
       fStade = Math.min(fStade, f);
+      var k = REGLES.bilan.kc[c.arrosage.besoin] || 0.85;
+      if (c.arrosage.besoin === 'eleve' && (pro === 'fruits' || pro === 'recolte' || s.statut === 'en_recolte')) k = 1.1;
+      kcMax = Math.max(kcMax, k);
+      if (pro === 'levee' && p.mode !== 'plant') semisNonLeve = true;
     });
     if (stop.length) res.raisons.push(stop.join(', ') + ' : ne plus arroser, la récolte approche');
     if (!aArroser.length) { res.statut = 'pas_arroser'; res.conseil = 'Ne plus arroser : la récolte approche (meilleure conservation).'; return res; }
@@ -1956,6 +2076,16 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     }
     var prochaine = new Date(refEffective.getTime() + intervalle * JOUR * (1 + 0.5 * Math.min(1, partielle / R.seuilPluie[type])));
 
+    // Bilan d'eau réel si l'évapotranspiration est disponible (remplace l'estimation simple)
+    var bilan = bilanEau(espace, kcMax || 0.85, fStade, reference, meteo, maintenant, semisNonLeve);
+    if (bilan) {
+      res.bilan = bilan;
+      var plusTard = new Date(maintenant.getTime() + R.intervalleMax * JOUR);
+      prochaine = bilan.prochaine && bilan.prochaine < plusTard ? bilan.prochaine : plusTard;
+      res.raisons = res.raisons.filter(function (r) { return !/chaleur \(|temps frais|compte comme un arrosage|prise en compte en partie/.test(r); });
+      res.raisons.unshift('calcul : évaporation mesurée depuis le dernier arrosage' + (espace.pluie === 'abri' ? '' : ' moins la pluie tombée'));
+      if (espace.pluie !== 'abri' && bilan.pluieRecue >= 1) res.raisons.push('pluie récente (' + arrondi(bilan.pluieRecue) + ' mm) : la terre a été réhumidifiée');
+    }
     // « Terre encore humide »
     var dernierReport = (reports || []).map(function (r) { return new Date(r.date); }).filter(function (d) { return d > refEffective; }).sort(function (a, b) { return b - a; })[0];
     if (dernierReport) {
@@ -1984,7 +2114,25 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
       res.conseil = 'Prochaine vérification : ' + quand(prochaine, maintenant) + '.';
       if (annoncee >= R.pluieAnnonceeSignificative) res.conseil += ' Pluie annoncée (' + arrondi(annoncee) + ' mm) : elle sera comptée une fois tombée.';
     }
+    res.decision = decisionArrosage(res, espace, meteo, maintenant, semisNonLeve);
     return res;
+  }
+  /** Verdict court et clair : arroser, attendre la pluie, pas besoin, à surveiller */
+  function decisionArrosage(res, espace, meteo, maintenant, semisNonLeve) {
+    var lieu = espace.type === 'bac' ? 'le bac' : 'la parcelle';
+    var eps = espace.pluie === 'abri' ? [] : episodesPluie(meteo, maintenant, 14);
+    var pluieSure = eps.filter(function (e) { return e.total >= 3 && (e.probaMax == null || e.probaMax === 0 || e.probaMax >= 70); })[0];
+    if (res.statut === 'a_verifier') {
+      if (pluieSure && !semisNonLeve) return { verdict: 'attendre', icone: '🌧️', titre: 'Attends la pluie', texte: pluieSure.texte + '. Si la terre n’est sèche qu’en surface, la pluie suffira ; arrose seulement si elle est sèche en profondeur.' };
+      return { verdict: 'arroser', icone: '💧', titre: 'Arrose ' + lieu, texte: 'Vérifie la terre avec le doigt : si elle est sèche sur 2-3 cm, arrose au pied, de préférence le soir ou tôt le matin.' };
+    }
+    if (res.statut === 'ok') {
+      var h = (res.prochaine - maintenant) / 3600000;
+      if (h <= 24) return { verdict: 'surveiller', icone: '👀', titre: 'Pas encore', texte: 'À vérifier ' + quand(res.prochaine, maintenant) + '.' + (pluieSure ? ' ' + pluieSure.texte + '.' : '') };
+      return { verdict: 'non', icone: '✅', titre: 'Pas besoin d’arroser', texte: 'Prochaine vérification ' + quand(res.prochaine, maintenant) + '.' };
+    }
+    if (res.statut === 'pas_arroser') return { verdict: 'non', icone: '🚫', titre: 'Ne pas arroser', texte: res.conseil };
+    return null;
   }
   function arrondi(x) { return Math.round(x * 10) / 10; }
 
@@ -2047,9 +2195,26 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
         concerne: sensibles
       });
     }
+    // Détail horaire du gel (prochaines nuits), si les prévisions horaires sont là
+    var lesNuits = nuits(meteo, maintenant, 3), nuitGel = lesNuits.filter(function (n) { return n.min <= A.geleeBlanche; })[0];
+    if (nuitGel) {
+      var g0 = res.filter(function (a) { return a.type === 'gel'; })[0];
+      var detail = nuitGel.heuresGel ? 'Gel ' + nuitGel.nom + ' de ' + heureTxt(nuitGel.debutGel) + ' à ' + heureTxt(nuitGel.finGel) + ', minimum ' + fmtT(nuitGel.min) + ' vers ' + heureTxt(nuitGel.heureMin) + '.'
+        : 'Minimum ' + fmtT(nuitGel.min) + ' ' + nuitGel.nom + ' vers ' + heureTxt(nuitGel.heureMin) + (nuitGel.claire ? ', ciel dégagé : gelée blanche probable au sol.' : '.');
+      if (g0) { g0.detail = detail; g0.conseil = 'Avant 19 h, ' + g0.conseil.charAt(0).toLowerCase() + g0.conseil.slice(1); }
+    }
+    // Canicule
+    var can = canicule(meteo, maintenant);
+    if (can) res.push({
+      type: 'canicule', gravite: 'alerte', date: isoDate(can.debut), quand: 'à partir de ' + JOURS[can.debut.getDay()] + ' ' + can.debut.getDate(),
+      titre: 'Épisode de chaleur : ' + can.jours + ' jours à 30 °C ou plus (jusqu’à ' + fmtT(can.tmax) + ')',
+      detail: can.nuitsChaudes ? can.nuitsChaudes + ' nuit' + (can.nuitsChaudes > 1 ? 's' : '') + ' à 20 °C ou plus : les plantes ne récupèrent pas la nuit.' : '',
+      conseil: 'La veille : paille épais et arrose copieusement au pied. Pendant : arrose tôt le matin, vérifie les bacs matin et soir, ombre salades et semis aux heures chaudes, ne sème ni ne plante.',
+      concerne: noms(function () { return true; })
+    });
     // Chaleur
     var chaud = futurs.reduce(function (a, j) { return j.tmax > a.tmax ? j : a; });
-    if (chaud.tmax >= A.chaleur) {
+    if (chaud.tmax >= A.chaleur && !can) {
       res.push({
         type: 'chaleur', gravite: chaud.tmax >= A.chaleurForte ? 'alerte' : 'attention', date: chaud.date, quand: quandTxt(chaud),
         titre: 'Forte chaleur : ' + fmtT(chaud.tmax),
@@ -2242,7 +2407,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
+    gelees: gelees, climatLocal: climatLocal, heuresDuJour: heuresDuJour, episodesPluie: episodesPluie, nuits: nuits, canicule: canicule, bilanEau: bilanEau, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
@@ -2259,7 +2424,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
  * En cas d'échec, l'app continue avec le calendrier climatique seul.
  */
 (function (racine) {
-  var CLE_CACHE = 'potager.meteo.v2';
+  var CLE_CACHE = 'potager.meteo.v3';
   var DUREE_FRAICHE = 3 * 3600 * 1000;   // on réutilise une prévision de moins de 3 h
   var DUREE_MAX = 24 * 3600 * 1000;      // au-delà de 24 h, une prévision est périmée
 
@@ -2299,14 +2464,38 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     }).catch(function () { return null; });
   }
 
+  /** Remplace les valeurs du modèle global par celles de Météo-France quand elles existent (même horaire) */
+  function fusionner(global, mf) {
+    if (!mf) { global.modeles = { meteoFrance: false }; return global; }
+    var joursMF = {};
+    ['hourly', 'daily'].forEach(function (bloc) {
+      var g = global[bloc], m = mf[bloc]; if (!g || !m) return;
+      var index = {}; (m.time || []).forEach(function (t, i) { index[t] = i; });
+      Object.keys(g).forEach(function (k) {
+        if (k === 'time' || !m[k]) return;
+        g[k] = g[k].map(function (v, i) {
+          var j = index[g.time[i]];
+          var w = j == null ? null : m[k][j];
+          if (w != null && bloc === 'daily' && k === 'temperature_2m_max') joursMF[g.time[i]] = true;
+          return w != null ? w : v;
+        });
+      });
+    });
+    global.modeles = { meteoFrance: true, joursMF: joursMF };
+    return global;
+  }
+
   function normaliser(r) {
     var jours = [], heures = [];
     var d = r.daily || {}, h = r.hourly || {};
     (d.time || []).forEach(function (t, i) {
       var v = function (k) { return d[k] ? d[k][i] : null; };
-      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code') });
+      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code'), et0: v('et0_fao_evapotranspiration') });
     });
-    (h.time || []).forEach(function (t, i) { heures.push({ t: t, pluie: h.precipitation[i] || 0 }); });
+    (h.time || []).forEach(function (t, i) {
+      var v = function (k) { return h[k] ? h[k][i] : null; };
+      heures.push({ t: t, pluie: v('precipitation') || 0, proba: v('precipitation_probability'), temp: v('temperature_2m'), code: v('weather_code'), vent: v('wind_speed_10m'), rafales: v('wind_gusts_10m'), humidite: v('relative_humidity_2m'), nuages: v('cloud_cover') });
+    });
     return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures };
   }
 
@@ -2323,10 +2512,16 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     if (!forcer && cache && cache.cle === cle && maintenant - cache.date < DUREE_FRAICHE) {
       return Promise.resolve({ meteo: cache.meteo, etat: 'ok' });
     }
-    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code&hourly=precipitation&past_days=3&forecast_days=8&timezone=auto';
-    return avecDelai(url).then(function (r) {
+    var base = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code,et0_fao_evapotranspiration' +
+      '&hourly=precipitation,precipitation_probability,temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,cloud_cover' +
+      '&past_days=3&forecast_days=8&timezone=auto';
+    // Modèle Météo-France (AROME 1,3 km puis ARPEGE) pour les premiers jours, complété par le modèle global au-delà
+    var mf = avecDelai(base + '&models=meteofrance_seamless', 10000).catch(function () { return null; });
+    return Promise.all([avecDelai(base), mf]).then(function (rs) {
+      var r = fusionner(rs[0], rs[1]);
       var m = normaliser(r);
+      m.modeles = r.modeles;
       ecrireCache({ cle: cle, date: maintenant, meteo: m });
       return { meteo: m, etat: 'ok' };
     }).catch(function () {
@@ -2355,7 +2550,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     }).catch(function () { return null; });
   }
 
-  racine.Meteo = { chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
+  racine.Meteo = { fusionner: fusionner, chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -2558,7 +2753,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     }
     h += '<div class="deux-entrees"><a class="grosse-entree" href="#/envie" data-test="envie">🌿 J’ai envie de planter…</a><a class="grosse-entree" href="#/suggestions" data-test="quoi-planter">📅 Quoi planter cette semaine ?</a></div>';
 
-    var aFaire = 0, blocs = '';
+    var aFaire = 0, blocs = blocJardinDuJour();
     // Alertes météo pour le jardin
     var alertes = alertesCourantes().filter(function (a) { return a.gravite !== 'info'; });
     if (alertes.length) {
@@ -2631,12 +2826,40 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
   function carteArrosage(a) {
     var e = a.espace;
     return '<div class="arrosage ' + a.statut + '" data-espace="' + e.id + '"><div><strong>' + esc(e.nom) + '</strong> <span class="petit">' + (e.pluie === 'abri' ? 'sous abri' : 'à ciel ouvert') + '</span></div>' +
+      verdictBloc(a) +
       '<p class="conseil-arrosage">' + esc(a.conseil) + '</p>' +
       (a.raisons.length ? '<p class="petit">' + esc(capitale(a.raisons.join(' ; '))) + '</p>' : '') +
       '<p class="petit dernier">' + esc(dernierArrosageTexte(a.dernierArrosage)) + '</p>' +
       (a.statut === 'vide' ? '' : '<div class="actions"><button class="bouton" data-action="arroser" data-id="' + e.id + '">💧 J’ai arrosé</button>' +
         (a.statut === 'a_verifier' ? '<button class="bouton secondaire" data-action="humide" data-id="' + e.id + '">Terre encore humide</button>' : '') + '</div>') +
       '</div>';
+  }
+
+  function jauge(b) {
+    if (!b) return '';
+    var p = b.pourcentEau, cl = p < 25 ? 'sec' : p < 50 ? 'moyen' : 'humide';
+    return '<div class="jauge ' + cl + '" title="Eau disponible estimée"><i style="width:' + Math.max(3, p) + '%"></i></div><p class="petit">Eau disponible estimée dans la terre : <strong>' + p + ' %</strong></p>';
+  }
+  function verdictBloc(a) {
+    var d = a.decision; if (!d) return '';
+    return '<p class="verdict v-' + d.verdict + '" data-test="verdict">' + d.icone + ' <strong>' + esc(d.titre) + '</strong>' + (d.verdict === 'attendre' ? '<br><span class="petit">' + esc(d.texte) + '</span>' : '') + '</p>' + jauge(a.bilan);
+  }
+  /** « Aujourd'hui au jardin » : décisions claires pour la journée */
+  function blocJardinDuJour() {
+    var m = meteo(), lignes = [], now = maintenant();
+    S.etat.espaces.forEach(function (e) {
+      var a = etatArrosage(e); if (!a.decision) return;
+      lignes.push('<li class="v-' + a.decision.verdict + '">' + a.decision.icone + ' <strong>' + esc(e.nom) + '</strong> : ' + esc(a.decision.titre.charAt(0).toLowerCase() + a.decision.titre.slice(1)) + (a.prochaine && (a.decision.verdict === 'surveiller' || a.decision.verdict === 'non') ? ' <span class="petit">(à vérifier ' + esc(M.dates.quand(a.prochaine, now)) + ')</span>' : '') + '</li>');
+    });
+    if (m) {
+      var n = M.nuits(m, now, 2)[0];
+      if (n && n.min <= 2) lignes.unshift('<li class="v-froid">🥶 <strong>' + capitale(n.nom) + ' : ' + Math.round(n.min) + ' °C</strong> vers ' + n.heureMin.getHours() + ' h' + (n.heuresGel ? ' (gel de ' + n.debutGel.getHours() + ' h à ' + n.finGel.getHours() + ' h)' : '') + ' : couvre les plantes frileuses avant la nuit.</li>');
+      var can = M.canicule(m, now);
+      if (can && M.dates.ecart(now, can.debut) <= 2) lignes.unshift('<li class="v-chaud">🥵 <strong>Canicule</strong> : ' + can.jours + ' jours à 30 °C ou plus (jusqu’à ' + Math.round(can.tmax) + ' °C). Arrose tôt le matin, paille le sol, ombre les jeunes plants.</li>');
+      M.episodesPluie(m, now, 36).slice(0, 2).forEach(function (ep) { lignes.push('<li>🌧️ ' + esc(ep.texte) + '</li>'); });
+    }
+    if (!lignes.length) return '';
+    return '<section class="carte accent" data-test="jardin-jour"><h2>🌱 Aujourd’hui au jardin</h2><ul class="jardin-jour">' + lignes.join('') + '</ul></section>';
   }
 
   /* ---------- Écran : J'ai envie de planter… ---------- */
@@ -2983,7 +3206,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
   function alertesCourantes() { return M.alertesJardin(meteo(), maintenant(), activesDetaillees(), 7); }
   function carteAlerte(a) {
     return '<div class="alerte-ligne ' + a.gravite + '" data-type="' + a.type + '"><p><strong>' + esc(a.titre) + '</strong> <span class="petit">' + esc(a.quand) + '</span></p>' +
-      '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') +
+      (a.detail ? '<p class="petit detail-alerte">🕒 ' + esc(a.detail) + '</p>' : '') + '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') +
       (a.probleme ? '<a class="lien-meteo" href="#/problemes">Reconnaître et traiter</a>' : '') + '</div>';
   }
   function ecranMeteo() {
@@ -2995,22 +3218,96 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     var al = alertesCourantes();
     h += '<section class="carte' + (al.some(function (a) { return a.gravite === 'alerte'; }) ? ' alerte' : '') + '" data-test="alertes"><h2>Alertes pour le jardin</h2>' +
       (al.length ? al.map(carteAlerte).join('') : '<p>Rien de particulier cette semaine : ni gel, ni forte chaleur, ni grosse pluie annoncés.</p>') + '</section>';
+    h += bloc48h();
+    h += blocEauBacs();
     var jours = M.previsions(meteo(), maintenant(), 7);
-    h += '<section class="carte"><h2>7 prochains jours</h2><div class="previsions" data-test="previsions">' + jours.map(function (j, i) {
-      var nom = i === 0 ? 'Aujourd’hui' : i === 1 ? 'Demain' : capitale(D.formatJour(j.jour).split(' ')[0]) + ' ' + j.jour.getDate();
-      return '<div class="prevision">' +
-        '<span class="pj">' + esc(nom) + '</span>' +
+    h += '<section class="carte"><h2>7 prochains jours</h2><p class="petit">Touche un jour pour voir le détail heure par heure.</p><div class="previsions" data-test="previsions">' + jours.map(function (j, i) {
+      return '<a class="prevision" href="#/meteo/' + j.date + '">' +
+        '<span class="pj">' + esc(nomJour(j.jour, i)) + '</span>' +
         '<span class="pc" title="' + esc(j.ciel) + '">' + (j.icone || '') + '</span>' +
         '<span class="pt"><b class="' + (j.gel ? 'froid' : '') + '">' + Math.round(j.tmin) + '°</b> / <b class="' + (j.chaleur ? 'chaud' : '') + '">' + Math.round(j.tmax) + '°</b></span>' +
         '<span class="pp">' + (j.pluie >= 0.5 ? '💧 ' + (Math.round(j.pluie * 10) / 10) + '\u00a0mm' : (j.probaPluie != null ? '<span class="petit">' + j.probaPluie + ' %</span>' : '—')) + '</span>' +
         '<span class="pv">' + (j.rafales != null ? '💨 ' + Math.round(j.rafales) : '') + '</span>' +
-        '</div>';
+        '<span class="pf">›</span></a>';
     }).join('') + '</div><p class="petit">Températures de la nuit / du jour · pluie en mm (ou risque de pluie en %) · rafales en km/h.</p></section>';
     var tombee = 0, debut = D.iso(D.ajouter(D.jour(maintenant()), -3));
     meteo().jours.forEach(function (j) { if (j.date >= debut && j.date < aujourdhuiISO()) tombee += j.pluie || 0; });
     h += '<section class="carte"><h2>Pluie des 3 derniers jours</h2><p><strong>' + (Math.round(tombee * 10) / 10) + ' mm</strong> tombés. ' +
       (tombee >= 10 ? 'La terre des espaces à ciel ouvert a été bien arrosée.' : tombee >= 3 ? 'Un petit apport, insuffisant pour les bacs.' : 'Presque rien : seuls tes arrosages comptent.') + '</p>' +
-      '<p class="petit">Prévisions Open-Meteo pour ' + esc(p.commune) + ', mises à jour toutes les 3 heures. <button class="lien" data-action="recharger-meteo">Actualiser</button></p></section>';
+      '<p class="petit">' + esc(sourceTexte()) + ' pour ' + esc(p.commune) + ', mises à jour toutes les 3 heures. <button class="lien" data-action="recharger-meteo">Actualiser</button></p></section>';
+    return h;
+  }
+
+  function nomJour(d, i) {
+    if (i == null) i = D.ecart(maintenant(), d);
+    return i === 0 ? 'Aujourd’hui' : i === 1 ? 'Demain' : capitale(D.formatJour(d).split(' ')[0]) + ' ' + d.getDate();
+  }
+  function sourceTexte(iso) {
+    var mo = meteo() && meteo().modeles;
+    if (!mo || !mo.meteoFrance) return 'Prévisions Open-Meteo (modèle global)';
+    if (iso && !mo.joursMF[iso]) return 'Prévisions Open-Meteo, modèle global (Météo-France ne prévoit pas si loin)';
+    return 'Prévisions Météo-France (modèles AROME / ARPEGE) via Open-Meteo';
+  }
+  function fiabilite(i) {
+    return i <= 1 ? 'Prévision très fiable' : i <= 3 ? 'Prévision fiable' : 'Tendance : à reconfirmer dans les prochains jours';
+  }
+  /** Prochaines 48 h : pluie heure par heure et nuits froides */
+  function bloc48h() {
+    var m = meteo(), now = maintenant(), eps = M.episodesPluie(m, now, 48), ns = M.nuits(m, now, 2), l = [];
+    if (eps.length) eps.forEach(function (e) { l.push('<li>🌧️ ' + esc(e.texte) + '</li>'); });
+    else l.push('<li>☂️ Pas de pluie notable prévue dans les 48 heures.</li>');
+    ns.forEach(function (n) {
+      l.push('<li>' + (n.min <= 0 ? '🥶' : n.min <= 3 ? '❄️' : '🌙') + ' ' + capitale(n.nom) + ' : minimum <strong>' + Math.round(n.min) + ' °C</strong> vers ' + n.heureMin.getHours() + ' h' +
+        (n.heuresGel ? ', gel de ' + n.debutGel.getHours() + ' h à ' + n.finGel.getHours() + ' h' : n.min <= 3 ? (n.claire ? ', ciel dégagé : gelée blanche possible au sol' : ', frais') : '') + '</li>');
+    });
+    return '<section class="carte" data-test="48h"><h2>Les prochaines 48 heures</h2><ul class="jardin-jour">' + l.join('') + '</ul></section>';
+  }
+  /** Eau dans chaque bac / parcelle avec une décision claire */
+  function blocEauBacs() {
+    var lignes = S.etat.espaces.map(function (e) { return etatArrosage(e); }).filter(function (a) { return a.decision; }).map(function (a) {
+      return '<div class="eau-bac"><p><strong>' + esc(a.espace.nom) + '</strong> <span class="petit">' + (a.espace.pluie === 'abri' ? 'sous abri' : 'à ciel ouvert') + '</span></p>' + verdictBloc(a) +
+        (a.decision.verdict !== 'attendre' ? '<p class="petit">' + esc(a.decision.texte) + '</p>' : '') + '</div>';
+    });
+    if (!lignes.length) return '';
+    return '<section class="carte" data-test="eau-bacs"><h2>💧 Faut-il arroser ?</h2>' + lignes.join('') + '<a class="lien-meteo" href="#/arrosage">Noter un arrosage</a></section>';
+  }
+  /** Détail d'un jour : heure par heure */
+  function ecranMeteoJour(iso) {
+    var h = entete('Météo du jardin', '#/meteo');
+    var m = meteo();
+    if (!m) return h + bandeauMeteo();
+    var j = m.jours.filter(function (x) { return x.date === iso; })[0];
+    if (!j) return h + '<section class="carte"><p>Pas de prévision pour ce jour.</p></section>';
+    var d = D.lire(iso), i = D.ecart(maintenant(), d), c = M.ciel(j.code), now = maintenant();
+    var heures = M.heuresDuJour(m, iso);
+    var idx = m.jours.indexOf(j), prec = m.jours[idx - 1], suiv = m.jours[idx + 1];
+    var debut = D.iso(D.jour(now));
+    h += '<nav class="jour-nav">' + (prec && prec.date >= debut ? '<a href="#/meteo/' + prec.date + '">‹ ' + esc(nomJour(D.lire(prec.date))) + '</a>' : '<span></span>') +
+      '<strong data-test="jour-titre">' + (i === 0 ? 'Aujourd’hui · ' : i === 1 ? 'Demain · ' : '') + esc(capitale(D.formatJour(d))) + '</strong>' +
+      (suiv && D.ecart(now, D.lire(suiv.date)) <= 7 ? '<a href="#/meteo/' + suiv.date + '">' + esc(nomJour(D.lire(suiv.date))) + ' ›</a>' : '<span></span>') + '</nav>';
+    h += '<section class="carte" data-test="jour-resume"><p class="jour-grand">' + (c.icone || '') + ' <b class="froid">' + Math.round(j.tmin) + '°</b> / <b class="chaud">' + Math.round(j.tmax) + '°</b> <span class="petit">' + esc(c.texte) + '</span></p>' +
+      '<ul class="jardin-jour">' +
+      '<li>💧 Pluie : <strong>' + (Math.round((j.pluie || 0) * 10) / 10) + ' mm</strong>' + (j.probaPluie != null ? ' · risque ' + j.probaPluie + ' %' : '') + '</li>' +
+      (j.rafales != null ? '<li>💨 Rafales jusqu’à ' + Math.round(j.rafales) + ' km/h</li>' : '') +
+      (j.et0 != null ? '<li>☀️ Évaporation : ' + (Math.round(j.et0 * 10) / 10) + ' mm d’eau perdus par la terre et les plantes' + (j.et0 >= 5 ? ' (forte : la terre sèche vite)' : j.et0 <= 1.5 ? ' (faible)' : '') + '</li>' : '') +
+      '</ul><p class="petit">' + esc(fiabilite(i)) + ' · ' + esc(sourceTexte(iso)) + '.</p></section>';
+    var al = alertesCourantes().filter(function (a) { return a.date === iso; });
+    if (al.length) h += '<section class="carte alerte"><h2>Pour le jardin ce jour-là</h2>' + al.map(carteAlerte).join('') + '</section>';
+    var minuit = new Date(d.getTime()); minuit.setHours(0, 0, 0, 0);
+    var eps = M.episodesPluie(m, minuit, 24).filter(function (e) { return D.iso(e.debut) === iso; });
+    if (eps.length) h += '<section class="carte"><h2>Quand va-t-il pleuvoir ?</h2><ul class="jardin-jour">' + eps.map(function (e) { return '<li>🌧️ De ' + e.debut.getHours() + ' h à ' + e.fin.getHours() + ' h : ' + (Math.round(e.total * 10) / 10) + ' mm' + (e.probaMax ? ' (' + e.probaMax + ' % de risque)' : '') + '</li>'; }).join('') + '</ul></section>';
+    if (heures.length) {
+      h += '<section class="carte"><h2>Heure par heure</h2><div class="heures" data-test="heures"><div class="heure entete-h"><span>Heure</span><span></span><span>Temp.</span><span>Pluie</span><span>Vent</span><span>Humid.</span></div>' + heures.map(function (x) {
+        var passe = x.date.getTime() + 3600000 <= now.getTime();
+        return '<div class="heure' + (passe ? ' passe' : '') + (x.temp != null && x.temp <= 0 ? ' gel' : '') + '">' +
+          '<span class="hh">' + x.date.getHours() + ' h</span>' +
+          '<span class="hc" title="' + esc(x.texte) + '">' + (x.icone || '') + '</span>' +
+          '<span class="ht">' + (x.temp != null ? '<b class="' + (x.temp <= 0 ? 'froid' : x.temp >= 30 ? 'chaud' : '') + '">' + Math.round(x.temp) + '°</b>' : '—') + '</span>' +
+          '<span class="hp">' + (x.pluie >= 0.1 ? (Math.round(x.pluie * 10) / 10) + ' mm' : '') + (x.proba != null && x.proba >= 20 ? ' <span class="petit">' + x.proba + ' %</span>' : (x.pluie >= 0.1 ? '' : '<span class="petit">—</span>')) + '</span>' +
+          '<span class="hv">' + (x.vent != null ? Math.round(x.vent) + (x.rafales != null && x.rafales >= 40 ? ' <span class="petit">(' + Math.round(x.rafales) + ')</span>' : '') : '') + '</span>' +
+          '<span class="hu">' + (x.humidite != null ? x.humidite + ' %' : '') + '</span></div>';
+      }).join('') + '</div><p class="petit">Vent moyen en km/h (rafales entre parenthèses quand elles sont fortes) · humidité de l’air.</p></section>';
+    }
     return h;
   }
 
@@ -3031,6 +3328,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     else if (p[0] === 'demarrer') { h = ecranDemarrer(p[1], p[2], r.q); onglet = 'planter'; }
     else if (p[0] === 'suivi') { h = ecranSuivi(p[1]); onglet = 'potager'; }
     else if (p[0] === 'arrosage') { h = ecranArrosage(); onglet = 'arrosage'; }
+    else if (p[0] === 'meteo' && p[1]) { h = ecranMeteoJour(p[1]); onglet = 'meteo'; }
     else if (p[0] === 'meteo') { h = ecranMeteo(); onglet = 'meteo'; }
     else if (p[0] === 'problemes') { h = ecranProblemes(r.q); onglet = 'planter'; }
     else if (p[0] === 'potager') { h = ecranPotager(); onglet = 'potager'; }

@@ -1,0 +1,18 @@
+name: Essai vraie météo
+on:
+  push:
+    branches: [main]
+    paths: ['js/**', 'outils/essai-meteo-reel.js', '.github/workflows/essai-meteo.yml']
+  workflow_dispatch:
+jobs:
+  essai:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Paris
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --test tests/moteur.test.js
+      - run: node outils/essai-meteo-reel.js

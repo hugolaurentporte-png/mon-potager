@@ -5,7 +5,7 @@
  * En cas d'échec, l'app continue avec le calendrier climatique seul.
  */
 (function (racine) {
-  var CLE_CACHE = 'potager.meteo.v2';
+  var CLE_CACHE = 'potager.meteo.v3';
   var DUREE_FRAICHE = 3 * 3600 * 1000;   // on réutilise une prévision de moins de 3 h
   var DUREE_MAX = 24 * 3600 * 1000;      // au-delà de 24 h, une prévision est périmée
 
@@ -45,14 +45,38 @@
     }).catch(function () { return null; });
   }
 
+  /** Remplace les valeurs du modèle global par celles de Météo-France quand elles existent (même horaire) */
+  function fusionner(global, mf) {
+    if (!mf) { global.modeles = { meteoFrance: false }; return global; }
+    var joursMF = {};
+    ['hourly', 'daily'].forEach(function (bloc) {
+      var g = global[bloc], m = mf[bloc]; if (!g || !m) return;
+      var index = {}; (m.time || []).forEach(function (t, i) { index[t] = i; });
+      Object.keys(g).forEach(function (k) {
+        if (k === 'time' || !m[k]) return;
+        g[k] = g[k].map(function (v, i) {
+          var j = index[g.time[i]];
+          var w = j == null ? null : m[k][j];
+          if (w != null && bloc === 'daily' && k === 'temperature_2m_max') joursMF[g.time[i]] = true;
+          return w != null ? w : v;
+        });
+      });
+    });
+    global.modeles = { meteoFrance: true, joursMF: joursMF };
+    return global;
+  }
+
   function normaliser(r) {
     var jours = [], heures = [];
     var d = r.daily || {}, h = r.hourly || {};
     (d.time || []).forEach(function (t, i) {
       var v = function (k) { return d[k] ? d[k][i] : null; };
-      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code') });
+      jours.push({ date: t, tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i], pluie: v('precipitation_sum') || 0, probaPluie: v('precipitation_probability_max'), rafales: v('wind_gusts_10m_max'), code: v('weather_code'), et0: v('et0_fao_evapotranspiration') });
     });
-    (h.time || []).forEach(function (t, i) { heures.push({ t: t, pluie: h.precipitation[i] || 0 }); });
+    (h.time || []).forEach(function (t, i) {
+      var v = function (k) { return h[k] ? h[k][i] : null; };
+      heures.push({ t: t, pluie: v('precipitation') || 0, proba: v('precipitation_probability'), temp: v('temperature_2m'), code: v('weather_code'), vent: v('wind_speed_10m'), rafales: v('wind_gusts_10m'), humidite: v('relative_humidity_2m'), nuages: v('cloud_cover') });
+    });
     return { source: 'Open-Meteo', recupereLe: new Date().toISOString(), altitude: r.elevation, jours: jours, heures: heures };
   }
 
@@ -69,10 +93,16 @@
     if (!forcer && cache && cache.cle === cle && maintenant - cache.date < DUREE_FRAICHE) {
       return Promise.resolve({ meteo: cache.meteo, etat: 'ok' });
     }
-    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code&hourly=precipitation&past_days=3&forecast_days=8&timezone=auto';
-    return avecDelai(url).then(function (r) {
+    var base = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,weather_code,et0_fao_evapotranspiration' +
+      '&hourly=precipitation,precipitation_probability,temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,cloud_cover' +
+      '&past_days=3&forecast_days=8&timezone=auto';
+    // Modèle Météo-France (AROME 1,3 km puis ARPEGE) pour les premiers jours, complété par le modèle global au-delà
+    var mf = avecDelai(base + '&models=meteofrance_seamless', 10000).catch(function () { return null; });
+    return Promise.all([avecDelai(base), mf]).then(function (rs) {
+      var r = fusionner(rs[0], rs[1]);
       var m = normaliser(r);
+      m.modeles = r.modeles;
       ecrireCache({ cle: cle, date: maintenant, meteo: m });
       return { meteo: m, etat: 'ok' };
     }).catch(function () {
@@ -101,5 +131,5 @@
     }).catch(function () { return null; });
   }
 
-  racine.Meteo = { chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
+  racine.Meteo = { fusionner: fusionner, chercherCommune: chercherCommune, altitude: altitude, prevision: prevision, normaliser: normaliser, climatLocal: climatLocal };
 })(typeof window !== 'undefined' ? window : globalThis);

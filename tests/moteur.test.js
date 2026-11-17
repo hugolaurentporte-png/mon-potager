@@ -197,7 +197,8 @@ test('Alertes météo du jardin', () => {
   assert.deepEqual(gel[0].concerne, ['Tomate']);
   assert.equal(M.alertesJardin(m([[5, 15], [5, 15], [8, 18], [-2, 10], [6, 16], [8, 18], [9, 19], [10, 20], [10, 20], [10, 20]]), maintenant, [ail])[0].gravite, 'attention');
   const chaud = M.alertesJardin(m([[18, 30], [18, 30], [20, 36], [20, 34, 0, 70], [18, 30], [18, 31], [18, 30], [18, 30], [18, 30], [18, 30]]), maintenant, [tomate]);
-  assert.ok(chaud.some(a => a.type === 'chaleur' && a.gravite === 'alerte'));
+  assert.ok(chaud.some(a => a.type === 'canicule' && a.gravite === 'alerte'), 'plusieurs jours ≥ 30 °C = canicule');
+  assert.ok(!chaud.some(a => a.type === 'chaleur'), 'pas de doublon chaleur/canicule');
   assert.ok(chaud.some(a => a.type === 'vent'));
   assert.ok(chaud.some(a => a.type === 'secheresse'));
   const calme = M.alertesJardin(m([[10, 20, 1], [10, 20], [10, 20], [10, 20], [10, 20, 2], [10, 20], [10, 20], [10, 20], [10, 20], [10, 20]]), maintenant, [tomate]);
@@ -262,4 +263,43 @@ test('Exposition, sol, associations, régions, maladies, rappels', () => {
   const f = M.ics(ev.concat([M.rappelArrosage({ id: 'b', nom: 'Bac', type: 'bac', sol: 'sableux' }, le('2027-04-06', 10))]), le('2027-04-06'));
   assert.match(f, /^BEGIN:VCALENDAR/); assert.match(f, /RRULE:FREQ=DAILY;INTERVAL=1;COUNT=40/); assert.match(f, /DTSTART;VALUE=DATE:20270409/);
   assert.equal((f.match(/BEGIN:VEVENT/g) || []).length, ev.length + 1);
+});
+
+test('Météo détaillée : heure par heure, pluie, nuits de gel, canicule, décision d’arrosage', () => {
+  require('../js/meteo.js');
+  const { reponseOpenMeteo, serie } = require('./outils.js');
+  const pluies = { '2027-05-13T14:00': 2, '2027-05-13T15:00': 3, '2027-05-13T16:00': 1.5 };
+  const m = globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-05-10', [[8, 18], [8, 18], [6, 17], [8, 16, 6.5], [-2, 12], [6, 16], [8, 18], [9, 19], [10, 20], [10, 20]]), pluies));
+  const maintenant = le('2027-05-12', 10);
+  // Détail d'un jour : 24 heures avec température et ciel
+  const h = M.heuresDuJour(m, '2027-05-13');
+  assert.equal(h.length, 24); assert.ok(h[15].temp > h[5].temp); assert.ok(h[0].icone);
+  // Épisode de pluie : demain de 14 h à 17 h, 6,5 mm
+  const ep = M.episodesPluie(m, maintenant, 48);
+  assert.equal(ep.length, 1); assert.match(ep[0].texte, /^Pluie demain de 14 h à 17 h : 6.5 mm \(80 % de risque\)/);
+  // Nuit de gel : celle du 13 au 14, avec heures de début et de fin
+  const n = M.nuits(m, maintenant, 3).find(x => x.min <= 0);
+  assert.ok(n && n.debutGel && n.finGel && n.heuresGel >= 1);
+  const tomate = { plantation: {}, culture: M.culture('tomate'), espace: {} };
+  const al = M.alertesJardin(m, maintenant, [tomate]);
+  const gel = al.find(a => a.type === 'gel');
+  assert.match(gel.detail, /^Gel .* de \d+ h à \d+ h, minimum/); assert.match(gel.conseil, /^Avant 19 h/);
+  // Canicule
+  const chaud = globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-07-10', [[18, 28], [18, 28], [20, 33], [21, 35], [22, 36], [19, 29], [18, 28], [18, 28]])));
+  const c = M.canicule(chaud, le('2027-07-11'));
+  assert.equal(c.jours, 3); assert.equal(c.tmax, 36); assert.equal(c.nuitsChaudes, 3);
+  // Bilan d'eau : le bac au soleil se vide plus vite que la pleine terre argileuse
+  const sec = globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-06-07', [[14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26]])));
+  const t = le('2027-06-10', 9), arr = [{ date: le('2027-06-08', 19).toISOString() }];
+  const cult = [{ cultureId: 'tomate', mode: 'plant', date: '2027-05-15', observations: { reprise: '2027-05-22' } }];
+  const bac = M.arrosage({ id: 'a', type: 'bac', pluie: 'ciel_ouvert', orientation: 'sud' }, cult, arr, [], sec, 'tempere', t);
+  const terre = M.arrosage({ id: 'b', type: 'pleine_terre', pluie: 'ciel_ouvert', sol: 'argileux' }, cult, arr, [], sec, 'tempere', t);
+  assert.ok(bac.bilan.pourcentEau < terre.bilan.pourcentEau);
+  assert.equal(bac.decision.verdict, 'arroser'); assert.equal(terre.decision.verdict, 'non');
+  // Pluie sûre annoncée dans les heures qui viennent : attendre plutôt qu'arroser
+  const pluieProche = globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-06-07', [[14, 26], [14, 26], [14, 26], [14, 22, 8], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26], [14, 26]]), { '2027-06-10T14:00': 4, '2027-06-10T15:00': 4 }));
+  const bac2 = M.arrosage({ id: 'a', type: 'bac', pluie: 'ciel_ouvert' }, cult, arr, [], pluieProche, 'tempere', t);
+  assert.equal(bac2.decision.verdict, 'attendre'); assert.match(bac2.decision.texte, /Pluie aujourd’hui de 14 h à 16 h/);
+  // Bac sous abri : jamais « attendre la pluie »
+  assert.equal(M.arrosage({ id: 'c', type: 'bac', pluie: 'abri' }, cult, arr, [], pluieProche, 'tempere', t).decision.verdict, 'arroser');
 });
