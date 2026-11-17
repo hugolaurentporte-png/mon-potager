@@ -77,3 +77,18 @@ entre les deux (borné à ± 45 jours). La même méthode étant appliquée des 
 côtés, l'écart reste cohérent même si la donnée (maillage de modèle, température
 sous abri à 2 m) diffère d'une station météo. À valider : un jardin en cuvette
 ou très abrité peut s'écarter de plusieurs semaines de la moyenne de la commune.
+
+## Ajouts (novembre 2026)
+
+- `data/terrain.js` : exposition (sud, est, ouest, nord) et type de terre. Effets sur
+  l'arrosage (sud ×0,85, nord ×1,15 ; sableux ×0,7, argileux ×1,3, terreau ×0,9),
+  cultures écartées au nord (légumes-fruits) et conseils par culture. À valider.
+- `data/associations.js` : compagnonnage traditionnel (peu prouvé scientifiquement),
+  présenté comme des repères.
+- `data/problemes.js` : 12 maladies et nuisibles courants, solutions sans produit
+  chimique en priorité (sources : SNHF, jardiner-autrement.fr, Terre vivante).
+  Alertes météo pour mildiou, pourriture grise et limaces : règles simples à valider.
+- `data/regions.js` : variétés de terroir (AOP/IGP INAO ou variétés traditionnelles)
+  par région administrative ; précocités estimées.
+- Rappels : fichier agenda .ics (norme iCalendar) ; rappels datés à 9 h, rappel
+  d'arrosage récurrent à 19 h selon le rythme de base de l'espace.

@@ -115,3 +115,8 @@ ul { padding-left: 20px; margin: 4px 0; } li { margin: 4px 0; }
 .pc { font-size: 1.3rem; text-align: center; }
 .pv { color: var(--doux); font-size: .85rem; }
 b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
+.voisin-ok { color: var(--vert); } .voisin-ko { color: var(--retard); }
+.probleme { border-top: 1px solid var(--bord); padding: 8px 0; }
+.probleme:first-child { border-top: 0; }
+.probleme summary { color: var(--texte); }
+.choix-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0 12px; }

@@ -118,6 +118,11 @@ ul { padding-left: 20px; margin: 4px 0; } li { margin: 4px 0; }
 .pc { font-size: 1.3rem; text-align: center; }
 .pv { color: var(--doux); font-size: .85rem; }
 b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
+.voisin-ok { color: var(--vert); } .voisin-ko { color: var(--retard); }
+.probleme { border-top: 1px solid var(--bord); padding: 8px 0; }
+.probleme:first-child { border-top: 0; }
+.probleme summary { color: var(--texte); }
+.choix-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0 12px; }
 </style>
 <main id="app" aria-live="polite"></main>
   <nav class="nav" aria-label="Navigation principale">
@@ -1159,6 +1164,293 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
 </script>
 <script>
 /*
+ * Orientation et type de sol des espaces — effets sur les conseils et l'arrosage.
+ * Valeurs indicatives (savoir jardinier courant), à valider à l'usage.
+ *  - facteurArrosage : multiplie l'intervalle entre deux vérifications
+ *    (< 1 = vérifier plus souvent).
+ */
+var TERRAIN = {
+  orientations: {
+    sud: { nom: 'Sud', aide: 'le plus chaud et le plus lumineux', facteurArrosage: 0.85,
+      aime: ['tomate', 'tomate-cerise', 'poivron', 'courgette', 'concombre', 'haricot-nain', 'fraise'],
+      note: 'exposition sud : idéale pour les légumes-fruits ; en été, ombre les salades et vérifie l’eau plus souvent' },
+    ouest: { nom: 'Ouest', aide: 'soleil chaud l’après-midi', facteurArrosage: 0.9,
+      aime: ['tomate', 'tomate-cerise', 'courgette', 'haricot-nain', 'fraise', 'betterave'],
+      note: 'exposition ouest : soleil chaud l’après-midi, assez bien pour la plupart des légumes' },
+    est: { nom: 'Est', aide: 'soleil doux du matin', facteurArrosage: 1,
+      aime: ['laitue', 'epinard', 'radis', 'mache', 'carotte', 'betterave', 'fraise'],
+      note: 'exposition est : soleil doux du matin, parfaite pour salades et légumes-racines' },
+    nord: { nom: 'Nord', aide: 'frais, peu de soleil direct', facteurArrosage: 1.15,
+      aime: ['laitue', 'epinard', 'mache', 'radis'],
+      evite: ['tomate', 'tomate-cerise', 'poivron', 'concombre', 'courgette'],
+      note: 'exposition nord : fraîche, réserve-la aux salades, épinards, mâche et radis' }
+  },
+  sols: {
+    terreau: { nom: 'Terreau du commerce', aide: 'léger, riche, sèche vite en bac', facteurArrosage: 0.9,
+      conseil: 'Le terreau s’épuise en un an : ajoute du compost ou un engrais organique à chaque nouvelle culture.' },
+    limoneux: { nom: 'Terre de jardin équilibrée', aide: 'souple, ni collante ni sableuse', facteurArrosage: 1,
+      conseil: 'Bonne terre : un apport de compost chaque année suffit.' },
+    argileux: { nom: 'Terre lourde / argileuse', aide: 'colle aux bottes, fend en été', facteurArrosage: 1.3,
+      conseil: 'Elle garde l’eau longtemps : arrose moins souvent mais vérifie en profondeur. Évite de la travailler mouillée et ajoute du compost pour l’alléger.',
+      cultures: {
+        carotte: 'terre lourde : carottes courtes ou fourchues, choisis une variété ronde ou demi-longue',
+        ail: 'terre lourde : plante sur une petite butte pour éviter la pourriture',
+        oignon: 'terre lourde : plante sur une petite butte pour éviter la pourriture',
+        radis: 'terre lourde : ameublis bien la surface avant de semer'
+      } },
+    sableux: { nom: 'Terre sableuse / légère', aide: 's’effrite, sèche très vite', facteurArrosage: 0.7,
+      conseil: 'Elle sèche vite : paille systématiquement et ajoute beaucoup de compost pour qu’elle retienne l’eau.',
+      cultures: {
+        carotte: 'terre sableuse : idéale pour de belles carottes droites',
+        courgette: 'terre sableuse : enrichis bien le trou de plantation en compost',
+        tomate: 'terre sableuse : paille épais, les tomates craignent les à-coups d’arrosage',
+        laitue: 'terre sableuse : arrose souvent, la salade monte vite en graines si elle a soif'
+      } },
+    caillouteux: { nom: 'Terre caillouteuse', aide: 'beaucoup de pierres', facteurArrosage: 0.85,
+      conseil: 'Retire les plus grosses pierres là où tu sèmes et ajoute du compost.',
+      cultures: {
+        carotte: 'terre caillouteuse : carottes fourchues, choisis une variété ronde ou cultive-les en bac',
+        radis: 'terre caillouteuse : enlève les cailloux sur la ligne de semis'
+      } }
+  }
+};
+if (typeof module !== 'undefined') module.exports = TERRAIN;
+
+</script>
+<script>
+/*
+ * Associations de cultures (« compagnonnage »).
+ * Savoir jardinier traditionnel, peu prouvé scientifiquement : à présenter comme
+ * des repères. Les associations « à éviter » les plus citées concernent :
+ *  - ail / oignon à côté des haricots (les alliacées freineraient les fabacées) ;
+ *  - deux cultures de la même famille côte à côte (maladies communes).
+ * Sources : guides Terre vivante, Rustica, Gerbeaud (repères courants).
+ */
+var ASSOCIATIONS = (function () {
+  var amis = [
+    ['tomate', 'carotte'], ['tomate', 'laitue'], ['tomate', 'radis'], ['tomate', 'ail'], ['tomate', 'oignon'], ['tomate', 'epinard'],
+    ['tomate-cerise', 'carotte'], ['tomate-cerise', 'laitue'], ['tomate-cerise', 'radis'], ['tomate-cerise', 'ail'], ['tomate-cerise', 'oignon'],
+    ['courgette', 'haricot-nain'], ['courgette', 'radis'], ['courgette', 'laitue'], ['courgette', 'oignon'],
+    ['concombre', 'haricot-nain'], ['concombre', 'laitue'], ['concombre', 'radis'],
+    ['poivron', 'carotte'], ['poivron', 'oignon'], ['poivron', 'epinard'], ['poivron', 'laitue'],
+    ['laitue', 'radis'], ['laitue', 'carotte'], ['laitue', 'fraise'], ['laitue', 'betterave'], ['laitue', 'oignon'],
+    ['mache', 'oignon'], ['mache', 'fraise'],
+    ['epinard', 'fraise'], ['epinard', 'radis'], ['epinard', 'haricot-nain'],
+    ['radis', 'carotte'], ['radis', 'haricot-nain'],
+    ['carotte', 'oignon'], ['carotte', 'ail'],
+    ['betterave', 'oignon'], ['betterave', 'haricot-nain'], ['betterave', 'ail'],
+    ['ail', 'fraise'], ['oignon', 'fraise'],
+    ['haricot-nain', 'carotte']
+  ];
+  var aEviter = [
+    ['ail', 'haricot-nain', 'l’ail freinerait la croissance des haricots'],
+    ['oignon', 'haricot-nain', 'l’oignon freinerait la croissance des haricots'],
+    ['tomate', 'concombre', 'besoins d’arrosage différents et maladies favorisées par l’humidité'],
+    ['tomate-cerise', 'concombre', 'besoins d’arrosage différents et maladies favorisées par l’humidité'],
+    ['courgette', 'concombre', 'même famille : ils partagent l’oïdium'],
+    ['tomate', 'poivron', 'même famille : maladies communes (mildiou), à espacer si possible'],
+    ['betterave', 'epinard', 'même famille : se concurrencent et partagent leurs maladies']
+  ];
+  var table = {};
+  function ajouter(a, b, type, raison) {
+    (table[a] = table[a] || { amis: [], aEviter: [] })[type].push(type === 'amis' ? b : { id: b, raison: raison });
+  }
+  amis.forEach(function (p) { ajouter(p[0], p[1], 'amis'); ajouter(p[1], p[0], 'amis'); });
+  aEviter.forEach(function (p) { ajouter(p[0], p[1], 'aEviter', p[2]); ajouter(p[1], p[0], 'aEviter', p[2]); });
+  return {
+    de: function (id) { return table[id] || { amis: [], aEviter: [] }; },
+    /** Relation entre deux cultures : 'ami', 'eviter' (avec raison) ou null */
+    entre: function (a, b) {
+      var t = table[a]; if (!t) return null;
+      if (t.amis.indexOf(b) >= 0) return { type: 'ami' };
+      var e = t.aEviter.filter(function (x) { return x.id === b; })[0];
+      return e ? { type: 'eviter', raison: e.raison } : null;
+    }
+  };
+})();
+if (typeof module !== 'undefined') module.exports = ASSOCIATIONS;
+
+</script>
+<script>
+/*
+ * Maladies et nuisibles courants du potager amateur, avec des solutions simples.
+ * Priorité à la prévention et aux gestes sans produit. Sources : fiches
+ * jardinage de la SNHF, Terre vivante, Rustica, guides « jardiner autrement »
+ * (Ecophyto / jardiner-autrement.fr). À valider.
+ *  - risque : conditions météo qui favorisent le problème (utilisées pour les alertes)
+ */
+var PROBLEMES = [
+  {
+    id: 'limaces', nom: 'Limaces et escargots', emoji: '🐌',
+    cultures: ['laitue', 'mache', 'epinard', 'fraise', 'courgette', 'concombre', 'haricot-nain', 'betterave', 'radis', 'carotte'],
+    signes: 'Feuilles trouées ou dévorées par le bord, traces brillantes, jeunes plants coupés au ras du sol après une nuit humide.',
+    prevenir: 'Arrose le matin plutôt que le soir. Évite de pailler autour des tout jeunes semis. Protège les jeunes plants avec une bouteille coupée.',
+    agir: 'Ramasse-les à la lampe le soir après la pluie. Pose des planches ou tuiles au sol : elles s’y cachent, tu les ramasses le matin. Une bande de cendre sèche ou de coquilles broyées freine leur passage (à renouveler après la pluie).',
+    risque: { pluieRecente: 5, tminMin: 5 }
+  },
+  {
+    id: 'pucerons', nom: 'Pucerons', emoji: '🐜',
+    cultures: ['laitue', 'poivron', 'haricot-nain', 'fraise', 'tomate', 'tomate-cerise', 'concombre', 'courgette', 'betterave', 'epinard'],
+    signes: 'Petits insectes verts ou noirs en colonies sous les feuilles ou au bout des tiges, feuilles enroulées et collantes, fourmis qui montent.',
+    prevenir: 'Évite les engrais trop riches en azote. Laisse des fleurs (souci, capucine) pour attirer coccinelles et syrphes, qui les mangent.',
+    agir: 'Écrase-les entre les doigts ou chasse-les avec un jet d’eau. Si besoin, pulvérise de l’eau avec un peu de savon noir (1 cuillère à soupe par litre), le soir, sous les feuilles.'
+  },
+  {
+    id: 'mildiou', nom: 'Mildiou', emoji: '🍂',
+    cultures: ['tomate', 'tomate-cerise'],
+    signes: 'Taches brunes qui s’étendent vite sur les feuilles (duvet blanc dessous par temps humide), tiges noircies, fruits marbrés de brun.',
+    prevenir: 'Arrose au pied, jamais le feuillage. Espace les pieds pour que l’air circule. Couvre les tomates d’un abri contre la pluie si possible. Retire les feuilles du bas qui touchent la terre.',
+    agir: 'Coupe et jette (pas au compost) les feuilles atteintes dès les premières taches. Une bouillie bordelaise en prévention, avant une période pluvieuse, limite la contamination (respecte la dose indiquée).',
+    risque: { joursPluvieux: 2, tmaxMin: 15, tmaxMax: 28 }
+  },
+  {
+    id: 'oidium', nom: 'Oïdium (« blanc »)', emoji: '⚪',
+    cultures: ['courgette', 'concombre', 'fraise'],
+    signes: 'Poudre blanche sur les feuilles, qui jaunissent puis sèchent. Fréquent en fin d’été quand les nuits sont humides et les journées chaudes.',
+    prevenir: 'Arrose au pied. Évite de planter trop serré. Ne mets pas courgettes et concombres côte à côte.',
+    agir: 'Coupe les feuilles très atteintes. Pulvérise du lait écrémé dilué (1 volume pour 9 d’eau) une fois par semaine sur les feuilles, le matin.'
+  },
+  {
+    id: 'mouche-carotte', nom: 'Mouche de la carotte', emoji: '🪰',
+    cultures: ['carotte'],
+    signes: 'Galeries brun-rouille dans les carottes, feuillage qui rougit et flétrit.',
+    prevenir: 'Éclaircis le soir et arrose après (l’odeur attire la mouche). Associe avec des oignons ou de l’ail. Un voile anti-insectes posé dès le semis est la protection la plus sûre.',
+    agir: 'Arrache et jette les carottes atteintes. Laisse le voile en place jusqu’à la récolte.'
+  },
+  {
+    id: 'altises', nom: 'Altises (« puces de terre »)', emoji: '🔴',
+    cultures: ['radis'],
+    signes: 'Feuilles criblées de petits trous ronds, minuscules insectes noirs qui sautent quand on approche. Fréquent par temps chaud et sec.',
+    prevenir: 'Garde la terre humide : les altises détestent l’humidité. Un voile anti-insectes protège les semis.',
+    agir: 'Arrose légèrement les feuilles le matin par temps sec. Les radis restent mangeables malgré les trous.'
+  },
+  {
+    id: 'cul-noir', nom: 'Cul noir des tomates', emoji: '⚫',
+    cultures: ['tomate', 'tomate-cerise', 'poivron'],
+    signes: 'Tache noire et sèche sous le fruit, à l’opposé de la queue. Ce n’est pas une maladie : la plante manque de calcium à cause d’un arrosage irrégulier.',
+    prevenir: 'Arrose régulièrement, sans laisser la terre sécher complètement puis la noyer. Paille le pied.',
+    agir: 'Retire les fruits atteints ; les suivants seront normaux si l’arrosage devient régulier.'
+  },
+  {
+    id: 'pourriture-grise', nom: 'Pourriture grise (botrytis)', emoji: '🩶',
+    cultures: ['fraise', 'laitue', 'tomate'],
+    signes: 'Moisissure grise et duveteuse sur les fruits ou à la base des salades, par temps humide et doux.',
+    prevenir: 'Paille sous les fraises pour que les fruits ne touchent pas la terre. Arrose le matin, au pied. Évite les plantations trop serrées.',
+    agir: 'Retire et jette tout de suite les fruits et feuilles atteints.',
+    risque: { joursPluvieux: 3, tmaxMin: 12, tmaxMax: 25 }
+  },
+  {
+    id: 'montee-graines', nom: 'Montée en graines', emoji: '🌾',
+    cultures: ['laitue', 'epinard', 'radis', 'mache'],
+    signes: 'Le cœur s’allonge en tige, les feuilles deviennent amères, une hampe florale apparaît.',
+    prevenir: 'Sème aux bonnes dates (évite les semis d’épinard et de radis en plein été), arrose régulièrement, ombre par fortes chaleurs.',
+    agir: 'Récolte tout de suite ce qui est encore mangeable, puis ressème à une meilleure période ou à l’ombre.'
+  },
+  {
+    id: 'fonte-semis', nom: 'Fonte des semis', emoji: '🥀',
+    cultures: ['tomate', 'tomate-cerise', 'poivron', 'laitue', 'concombre', 'courgette', 'betterave'],
+    signes: 'Les jeunes plantules s’effondrent d’un coup, la tige pourrit au ras de la terre.',
+    prevenir: 'Utilise un terreau neuf pour les semis, n’arrose pas trop, aère la pièce, ne sème pas trop serré.',
+    agir: 'Retire les plantules couchées et laisse sécher la surface entre deux arrosages. Ressème si besoin dans un terreau neuf.'
+  },
+  {
+    id: 'rouille-ail', nom: 'Rouille de l’ail et de l’oignon', emoji: '🟠',
+    cultures: ['ail', 'oignon'],
+    signes: 'Petites pustules orange sur les feuilles au printemps.',
+    prevenir: 'Ne replante pas ail ou oignon au même endroit avant 3-4 ans. Espace les rangs, n’arrose pas le feuillage.',
+    agir: 'Retire les feuilles très atteintes. La récolte reste en général mangeable.'
+  },
+  {
+    id: 'ver-gris', nom: 'Vers gris et larves du sol', emoji: '🐛',
+    cultures: ['laitue', 'betterave', 'carotte', 'courgette', 'haricot-nain'],
+    signes: 'Jeunes plants coupés net au collet pendant la nuit ; en grattant, on trouve une chenille grise enroulée.',
+    prevenir: 'Griffe la terre avant de planter pour exposer les larves aux oiseaux.',
+    agir: 'Gratte la terre au pied du plant coupé, le matin : la larve est souvent juste là. Retire-la.'
+  }
+];
+if (typeof module !== 'undefined') module.exports = PROBLEMES;
+
+</script>
+<script>
+/*
+ * Régions et spécialités locales.
+ * Variétés traditionnelles ou sous signe de qualité (AOP, IGP, Label rouge) liées
+ * à un terroir, parmi les 15 cultures de l'app. Elles s'ajoutent aux variétés de
+ * chaque fiche (avec leur précocité) et sont mises en avant pour les jardiniers
+ * de la région. Sources : INAO (signes de qualité), catalogues de semences
+ * anciennes. Précocités estimées : à valider.
+ */
+var REGIONS = (function () {
+  var regions = {
+    'bretagne': { nom: 'Bretagne', deps: ['22', '29', '35', '56'] },
+    'normandie': { nom: 'Normandie', deps: ['14', '27', '50', '61', '76'] },
+    'hauts-de-france': { nom: 'Hauts-de-France', deps: ['02', '59', '60', '62', '80'] },
+    'ile-de-france': { nom: 'Île-de-France', deps: ['75', '77', '78', '91', '92', '93', '94', '95'] },
+    'grand-est': { nom: 'Grand Est', deps: ['08', '10', '51', '52', '54', '55', '57', '67', '68', '88'] },
+    'pays-de-la-loire': { nom: 'Pays de la Loire', deps: ['44', '49', '53', '72', '85'] },
+    'centre': { nom: 'Centre-Val de Loire', deps: ['18', '28', '36', '37', '41', '45'] },
+    'bourgogne-franche-comte': { nom: 'Bourgogne-Franche-Comté', deps: ['21', '25', '39', '58', '70', '71', '89', '90'] },
+    'nouvelle-aquitaine': { nom: 'Nouvelle-Aquitaine', deps: ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '87'] },
+    'auvergne-rhone-alpes': { nom: 'Auvergne-Rhône-Alpes', deps: ['01', '03', '07', '15', '26', '38', '42', '43', '63', '69', '73', '74'] },
+    'occitanie': { nom: 'Occitanie', deps: ['09', '11', '12', '30', '31', '32', '34', '46', '48', '65', '66', '81', '82'] },
+    'paca': { nom: 'Provence-Alpes-Côte d’Azur', deps: ['04', '05', '06', '13', '83', '84'] },
+    'corse': { nom: 'Corse', deps: ['20', '2A', '2B'] }
+  };
+  // Spécialités : culture, variété ajoutée à la fiche, régions concernées
+  var specialites = [
+    { culture: 'oignon', regions: ['bretagne'], variete: { id: 'rose-roscoff', nom: 'Oignon rosé de Roscoff', facteur: 1.05, note: 'AOP du Finistère, doux, se conserve bien' } },
+    { culture: 'fraise', regions: ['bretagne'], variete: { id: 'plougastel', nom: 'Fraise de Plougastel (type Gariguette)', facteur: 0.95, note: 'tradition bretonne' } },
+    { culture: 'haricot-nain', regions: ['bretagne'], variete: { id: 'coco-paimpol', nom: 'Coco de Paimpol', facteur: 1.2, note: 'AOP, haricot demi-sec à écosser' } },
+    { culture: 'carotte', regions: ['normandie'], variete: { id: 'creances', nom: 'Carotte de Créances (type Nantaise)', facteur: 1.0, note: 'IGP de la Manche, terre sableuse' } },
+    { culture: 'ail', regions: ['hauts-de-france'], variete: { id: 'arleux', nom: 'Ail d’Arleux (fumé)', facteur: 1.0, note: 'IGP du Nord' } },
+    { culture: 'laitue', regions: ['ile-de-france', 'centre'], variete: { id: 'gotte', nom: 'Laitue Gotte jaune d’or', facteur: 0.9, note: 'ancienne variété maraîchère' } },
+    { culture: 'carotte', regions: ['ile-de-france'], variete: { id: 'nantaise-paris', nom: 'Carotte Grelot (Marché de Paris)', facteur: 0.8, note: 'ronde, variété des maraîchers parisiens' } },
+    { culture: 'mache', regions: ['pays-de-la-loire'], variete: { id: 'nantaise', nom: 'Mâche nantaise (verte à cœur plein)', facteur: 1.0, note: 'IGP Mâche nantaise' } },
+    { culture: 'tomate', regions: ['nouvelle-aquitaine'], variete: { id: 'marmande-ag', nom: 'Tomate Marmande', facteur: 0.9, note: 'née en Lot-et-Garonne' } },
+    { culture: 'fraise', regions: ['nouvelle-aquitaine'], variete: { id: 'perigord', nom: 'Fraise du Périgord (Gariguette, Mara des bois)', facteur: 1.0, note: 'IGP de Dordogne' } },
+    { culture: 'poivron', regions: ['nouvelle-aquitaine'], variete: { id: 'doux-landes', nom: 'Piment doux des Landes', facteur: 0.95, note: 'poivron allongé, à poêler' } },
+    { culture: 'ail', regions: ['occitanie'], variete: { id: 'violet-cadours', nom: 'Ail violet de Cadours', facteur: 1.0, note: 'AOP de Haute-Garonne' } },
+    { culture: 'ail', regions: ['occitanie'], variete: { id: 'rose-lautrec', nom: 'Ail rose de Lautrec', facteur: 0.9, note: 'IGP du Tarn, planté en fin d’hiver' } },
+    { culture: 'ail', regions: ['occitanie', 'nouvelle-aquitaine'], variete: { id: 'blanc-lomagne', nom: 'Ail blanc de Lomagne', facteur: 1.0, note: 'IGP Gers / Tarn-et-Garonne' } },
+    { culture: 'oignon', regions: ['occitanie'], variete: { id: 'doux-cevennes', nom: 'Oignon doux des Cévennes', facteur: 1.05, note: 'AOP, cultivé en terrasses' } },
+    { culture: 'fraise', regions: ['occitanie'], variete: { id: 'nimes', nom: 'Fraise de Nîmes', facteur: 0.95, note: 'précoce' } },
+    { culture: 'courgette', regions: ['paca', 'corse'], variete: { id: 'ronde-nice-r', nom: 'Courgette ronde de Nice', facteur: 0.95, note: 'variété niçoise, à farcir' } },
+    { culture: 'tomate', regions: ['paca', 'occitanie', 'corse'], variete: { id: 'coeur-boeuf-r', nom: 'Tomate Cœur de bœuf', facteur: 1.15, note: 'aime les étés chauds du Sud' } },
+    { culture: 'fraise', regions: ['paca'], variete: { id: 'carpentras', nom: 'Fraise de Carpentras (Gariguette)', facteur: 0.9, note: 'IGP du Vaucluse, très précoce' } },
+    { culture: 'poivron', regions: ['paca', 'corse'], variete: { id: 'lamuyo', nom: 'Poivron Lamuyo', facteur: 1.05, note: 'gros fruits, pour étés chauds' } },
+    { culture: 'betterave', regions: ['grand-est', 'hauts-de-france'], variete: { id: 'crapaudine-r', nom: 'Betterave Crapaudine', facteur: 1.3, note: 'très ancienne, se conserve l’hiver' } },
+    { culture: 'oignon', regions: ['grand-est', 'bourgogne-franche-comte'], variete: { id: 'jaune-vertus', nom: 'Oignon jaune paille des Vertus', facteur: 1.0, note: 'variété de garde rustique' } },
+    { culture: 'laitue', regions: ['auvergne-rhone-alpes', 'bourgogne-franche-comte'], variete: { id: 'reine-glaces', nom: 'Laitue Reine des glaces', facteur: 1.0, note: 'croquante, résiste à la montée en graines' } },
+    { culture: 'haricot-nain', regions: ['auvergne-rhone-alpes', 'centre', 'pays-de-la-loire'], variete: { id: 'lingot', nom: 'Haricot Lingot', facteur: 1.2, note: 'haricot à écosser traditionnel' } }
+  ];
+  function regionDuDepartement(dep) {
+    if (!dep) return null;
+    for (var k in regions) if (regions[k].deps.indexOf(dep) >= 0) return Object.assign({ id: k }, regions[k]);
+    return null;
+  }
+  /** Ajoute les variétés régionales aux fiches (une seule fois) */
+  function enrichir(cultures) {
+    specialites.forEach(function (s) {
+      var c = cultures.filter(function (x) { return x.id === s.culture; })[0];
+      if (!c || c.varietes.some(function (v) { return v.id === s.variete.id; })) return;
+      c.varietes.push(Object.assign({ regions: s.regions }, s.variete));
+    });
+  }
+  return {
+    regions: regions,
+    specialites: specialites,
+    depuisDepartement: regionDuDepartement,
+    depuisCodePostal: function (cp) { cp = String(cp || ''); return /^\d{5}$/.test(cp) ? regionDuDepartement(cp.slice(0, 2)) : null; },
+    specialitesDe: function (regionId) { return specialites.filter(function (s) { return s.regions.indexOf(regionId) >= 0; }); },
+    enrichir: enrichir
+  };
+})();
+if (typeof window !== 'undefined' && window.CULTURES) REGIONS.enrichir(window.CULTURES);
+if (typeof module !== 'undefined') module.exports = REGIONS;
+
+</script>
+<script>
+/*
  * MOTEUR DE CONSEILS — logique pure, sans interface.
  * Tout ce qui dépend du temps reçoit `maintenant` en paramètre (testable).
  * Les règles chiffrées propres au moteur (seuils d'arrosage, marges) sont
@@ -1169,6 +1461,11 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
   var CULTURES = racine.CULTURES || (typeof require !== 'undefined' && require('../data/cultures.js'));
   var ETAPES = racine.ETAPES || (typeof require !== 'undefined' && require('../data/etapes.js'));
   var CLIMATS = racine.CLIMATS || (typeof require !== 'undefined' && require('../data/climats.js'));
+  var TERRAIN = racine.TERRAIN || (typeof require !== 'undefined' && require('../data/terrain.js'));
+  var ASSOCIATIONS = racine.ASSOCIATIONS || (typeof require !== 'undefined' && require('../data/associations.js'));
+  var PROBLEMES = racine.PROBLEMES || (typeof require !== 'undefined' && require('../data/problemes.js'));
+  var REGIONS = racine.REGIONS || (typeof require !== 'undefined' && require('../data/regions.js'));
+  if (REGIONS && !racine.REGIONS) REGIONS.enrichir(CULTURES);
 
   var REGLES = {
     margeConditionsJours: 14,      // avant/après une fenêtre : « possible sous conditions »
@@ -1413,7 +1710,14 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     }
     if (capacite(c, espace, []).total < 1) raisons.push('espace trop petit (' + c.espacement.plant + ' × ' + c.espacement.rang + ' cm par plant)');
     if (espace.pluie === 'abri') notes.push('sous abri : pense à arroser, la pluie ne l’atteint pas');
-    return { ok: raisons.length === 0, raisons: raisons, notes: notes };
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation], bonus = 0;
+    if (o) {
+      if ((o.evite || []).indexOf(c.id) >= 0) raisons.push('exposition nord : trop fraîche pour cette culture');
+      else if ((o.aime || []).indexOf(c.id) >= 0) { bonus += 1; notes.push('se plaît en exposition ' + o.nom.toLowerCase()); }
+    }
+    var sol = espace.sol && TERRAIN.sols[espace.sol];
+    if (sol && sol.cultures && sol.cultures[c.id]) notes.push(sol.cultures[c.id]);
+    return { ok: raisons.length === 0, raisons: raisons, notes: notes, bonus: bonus };
   }
 
   function phraseDemarrage(c, g) {
@@ -1422,7 +1726,19 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
   }
 
   /** Suggestions « Quoi planter cette semaine ? » pour un espace (ou sans espace) */
-  function suggestions(espace, date, zoneId, meteo, plantationsActives) {
+  /** Bons voisins et voisins à éviter parmi les cultures déjà présentes */
+  function voisinage(cultureId, actives) {
+    var amis = [], eviter = [], vus = {};
+    actives.forEach(function (p) {
+      if (p.cultureId === cultureId || vus[p.cultureId]) return;
+      vus[p.cultureId] = true;
+      var r = ASSOCIATIONS.entre(cultureId, p.cultureId), c = culture(p.cultureId);
+      if (!r || !c) return;
+      if (r.type === 'ami') amis.push(c.nom); else eviter.push({ nom: c.nom, raison: r.raison });
+    });
+    return { amis: amis, aEviter: eviter };
+  }
+  function suggestions(espace, date, zoneId, meteo, plantationsActives, regionId) {
     var res = [];
     CULTURES.forEach(function (c) {
       var compat = espace ? compatibilite(c, espace) : { ok: true, raisons: [], notes: [] };
@@ -1432,11 +1748,15 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
         return (b.geste === 'semis_place' || (b.geste === 'plantation' && a.geste === 'semis_abri')) ? b : a;
       });
       var cap = espace ? capacite(c, espace, plantationsActives || []) : null;
-      res.push({ culture: c, compat: compat, conseils: conseils, meilleur: best, capacite: cap, demarrage: phraseDemarrage(c, best.geste) });
+      var voisins = voisinage(c.id, plantationsActives || []);
+      var score = (compat.bonus || 0) + voisins.amis.length - 2 * voisins.aEviter.length;
+      var spe = regionId ? REGIONS.specialitesDe(regionId).filter(function (x) { return x.culture === c.id; }).map(function (x) { return x.variete; }) : [];
+      if (spe.length) score += 0.5;
+      res.push({ culture: c, compat: compat, conseils: conseils, meilleur: best, capacite: cap, demarrage: phraseDemarrage(c, best.geste), voisins: voisins, regionales: spe, score: score });
     });
     return res.sort(function (a, b) {
       if (a.compat.ok !== b.compat.ok) return a.compat.ok ? -1 : 1;
-      return b.meilleur.niveau - a.meilleur.niveau || a.culture.nom.localeCompare(b.culture.nom);
+      return b.meilleur.niveau - a.meilleur.niveau || b.score - a.score || a.culture.nom.localeCompare(b.culture.nom);
     });
   }
 
@@ -1611,7 +1931,10 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
       res.meteoUtilisee = false;
       res.raisons.push('météo indisponible : estimation sans chaleur ni pluie');
     }
-    var intervalle = Math.max(R.intervalleMin, Math.min(R.intervalleMax, R.intervalleBase[type] * fStade * fChaleur));
+    var fTerrain = 1, o = espace.orientation && TERRAIN.orientations[espace.orientation], so = espace.sol && TERRAIN.sols[espace.sol];
+    if (o && o.facteurArrosage !== 1) { fTerrain *= o.facteurArrosage; res.raisons.push('exposition ' + o.nom.toLowerCase() + (o.facteurArrosage < 1 ? ' : sèche plus vite' : ' : sèche plus lentement')); }
+    if (so && so.facteurArrosage !== 1) { fTerrain *= so.facteurArrosage; res.raisons.push(so.nom.toLowerCase() + (so.facteurArrosage < 1 ? ' : retient peu l’eau' : ' : garde l’eau longtemps')); }
+    var intervalle = Math.max(R.intervalleMin, Math.min(R.intervalleMax, R.intervalleBase[type] * fStade * fChaleur * fTerrain));
     res.intervalleJours = intervalle;
 
     // Pluie tombée (uniquement si l'espace y est exposé, et uniquement le passé)
@@ -1776,6 +2099,27 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
         concerne: []
       });
     }
+    // Maladies et nuisibles favorisés par la météo, seulement pour les cultures présentes
+    var passes = meteo.jours.filter(function (j) { return j.date < auj && j.date >= isoDate(ajouterJours(jourDe(maintenant), -2)); });
+    PROBLEMES.filter(function (pb) { return pb.risque; }).forEach(function (pb) {
+      var touchees = noms(function (a) { return pb.cultures.indexOf(a.culture.id) >= 0; });
+      if (!touchees.length) return;
+      var r = pb.risque, declenche = false, quandPb = 'ces jours-ci';
+      if (r.joursPluvieux) {
+        var humides = futurs.slice(0, 5).filter(function (j) { return (j.pluie || 0) >= 2 && j.tmax >= r.tmaxMin && j.tmax <= r.tmaxMax; });
+        if (humides.length >= r.joursPluvieux) { declenche = true; quandPb = quandTxt(humides[0]); }
+      }
+      if (r.pluieRecente) {
+        var tombe = passes.concat(futurs.slice(0, 1)).reduce(function (t, j) { return t + (j.pluie || 0); }, 0);
+        var doux = futurs.slice(0, 2).every(function (j) { return j.tmin >= r.tminMin; });
+        if (tombe >= r.pluieRecente && doux) { declenche = true; quandPb = 'après la pluie'; }
+      }
+      if (declenche) res.push({
+        type: 'probleme', probleme: pb.id, gravite: 'attention', date: futurs[0].date, quand: quandPb,
+        titre: pb.emoji + ' Risque : ' + pb.nom.toLowerCase(),
+        conseil: pb.prevenir, concerne: touchees
+      });
+    });
     var ordre = { alerte: 0, attention: 1, info: 2 };
     return res.sort(function (a, b) { return ordre[a.gravite] - ordre[b.gravite] || (a.date < b.date ? -1 : 1); });
   }
@@ -1832,13 +2176,73 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     };
   }
 
+  /* ---------- Problèmes ---------- */
+  function problemesDe(cultureId) { return PROBLEMES.filter(function (p) { return p.cultures.indexOf(cultureId) >= 0; }); }
+
+  /* ---------- Rappels (fichier agenda .ics, lisible par iPhone, Android, Outlook) ---------- */
+  function icsDate(d, journee) {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    if (journee) return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+    return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + 'T' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + '00Z';
+  }
+  function icsTexte(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function plierLigne(l) { var c = Array.from(l), out = []; for (var i = 0; i < c.length; i += 40) out.push((i ? ' ' : '') + c.slice(i, i + 40).join('')); return out.join('\r\n'); }
+  /** events : [{ id, titre, debut: Date, journee, description, rrule, alarmeMinutes }] */
+  function ics(events, maintenant) {
+    var l = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mon potager//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    events.forEach(function (e) {
+      l.push('BEGIN:VEVENT', 'UID:' + e.id + '@mon-potager', 'DTSTAMP:' + icsDate(maintenant || new Date(), false));
+      if (e.journee) { l.push('DTSTART;VALUE=DATE:' + icsDate(e.debut, true), 'DTEND;VALUE=DATE:' + icsDate(ajouterJours(e.debut, 1), true)); }
+      else { l.push('DTSTART:' + icsDate(e.debut, false), 'DTEND:' + icsDate(new Date(e.debut.getTime() + 15 * 60000), false)); }
+      if (e.rrule) l.push('RRULE:' + e.rrule);
+      l.push('SUMMARY:' + icsTexte(e.titre));
+      if (e.description) l.push('DESCRIPTION:' + icsTexte(e.description));
+      l.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsTexte(e.titre), 'TRIGGER:' + (e.journee ? 'PT9H' : '-PT0M'), 'END:VALARM', 'END:VEVENT');
+    });
+    l.push('END:VCALENDAR');
+    return l.map(plierLigne).join('\r\n') + '\r\n';
+  }
+  /** Rappels d'une culture : étapes à venir, récolte, gestes datés */
+  function rappelsPlantation(p, zoneId, maintenant) {
+    var s = suivi(p, zoneId, maintenant, null), c = s.culture, ev = [], auj = jourDe(maintenant);
+    if (s.statut === 'terminee') return ev;
+    var nomEsp = p.espaceNom ? ' (' + p.espaceNom + ')' : '';
+    s.chronologie.etapes.forEach(function (e) {
+      if (e.observe || e.statut === 'passe' || e.etape === 'recolte' || e.du < auj) return;
+      ev.push({ id: p.id + '-' + e.etape, journee: true, debut: e.du, alarmeMinutes: -540,
+        titre: c.emoji + ' ' + c.nom + nomEsp + ' : à surveiller, ' + e.titre.toLowerCase(),
+        description: 'Fenêtre estimée ' + formatFenetre(e.du, e.au) + '. ' + texteEtape(c, e.etape, 'normal') + ' Confirme-la dans l’app quand tu la vois.' });
+    });
+    if (s.recolte && s.recolte.du >= auj) {
+      ev.push({ id: p.id + '-recolte', journee: true, debut: ajouterJours(s.recolte.du, -3), alarmeMinutes: -540,
+        titre: c.emoji + ' ' + c.nom + nomEsp + ' : récolte bientôt',
+        description: 'Première récolte estimée ' + s.recolte.fenetre + '. Signe à observer : ' + c.recolte.signe });
+    }
+    (c.gestes || []).forEach(function (g, i) {
+      if (g.apres !== 'recolte' || !s.recolte) return;
+      var d = ajouterJours(s.recolte.du, g.j[0]);
+      if (d >= auj) ev.push({ id: p.id + '-geste' + i, journee: true, debut: d, alarmeMinutes: -540, titre: c.emoji + ' ' + c.nom + nomEsp + ' : ' + g.titre.toLowerCase(), description: g.consigne });
+    });
+    return ev;
+  }
+  /** Rappel récurrent de vérification de l'arrosage pour un espace (le soir, 19 h) */
+  function rappelArrosage(espace, maintenant, nb) {
+    var type = espace.type === 'bac' ? 'bac' : 'pleine_terre', R = REGLES.arrosage;
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation], so = espace.sol && TERRAIN.sols[espace.sol];
+    var n = Math.max(1, Math.round(R.intervalleBase[type] * (o ? o.facteurArrosage : 1) * (so ? so.facteurArrosage : 1)));
+    var d = new Date(maintenant.getTime()); d.setHours(19, 0, 0, 0); if (d <= maintenant) d = ajouterJours(d, 1);
+    return { id: 'arrosage-' + espace.id, journee: false, debut: d, rrule: 'FREQ=DAILY;INTERVAL=' + n + ';COUNT=' + (nb || 40),
+      titre: '💧 Vérifier la terre : ' + espace.nom,
+      description: 'Enfonce un doigt dans la terre : si elle est sèche sur 2-3 cm, arrose au pied. Ouvre l’app pour noter « J’ai arrosé » : le prochain conseil tiendra compte de la météo.' , intervalle: n };
+  }
+
   var Moteur = {
     REGLES: REGLES, NIVEAUX: NIVEAUX, GESTES: GESTES, NOMS_MODES: NOMS_MODES,
     cultures: function () { return CULTURES; }, culture: culture, gestesDe: gestesDe, modesDe: modesDe, nomGeste: nomGeste, gesteDuMode: gesteDuMode,
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal,
+    gelees: gelees, climatLocal: climatLocal, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
@@ -2072,6 +2476,20 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
   function maintenant() { return new Date(); }
   function unite(n, u) { return n > 1 || /s$/.test(u) && /(radis)$/.test(u) ? u : u.replace(/s$/, ''); }
   function aujourdhuiISO() { return D.iso(maintenant()); }
+  function region() {
+    var p = S.etat.profil; if (!p) return null;
+    return (p.departement && window.REGIONS.depuisDepartement(p.departement)) || window.REGIONS.depuisCodePostal(p.codePostal);
+  }
+  function regionId() { var r = region(); return r ? r.id : null; }
+  var dansClaude = !!(window.claude && window.claude.use);
+  function telecharger(nom, contenu, type) {
+    try {
+      var url = URL.createObjectURL(new Blob([contenu], { type: type }));
+      var a = document.createElement('a'); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      return true;
+    } catch (e) { return false; }
+  }
   function zoneId() { return (S.etat.profil && S.etat.profil.zone) || 'tempere'; }
   function meteo() { return meteoEtat.meteo; }
   // Navigation interne : fonctionne aussi dans un cadre où l'adresse ne peut pas changer.
@@ -2198,6 +2616,15 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
       return '<a class="ligne" href="#/culture/' + s.culture.id + '"><strong>' + s.culture.emoji + ' ' + esc(s.culture.nom) + '</strong> ' + badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p></a>';
     }).join('');
     h += '</section>';
+    var r = region();
+    if (r) {
+      var spe = window.REGIONS.specialitesDe(r.id);
+      if (spe.length) h += '<section class="carte" data-test="region"><h2>🏷️ Spécialités de ta région <span class="petit">· ' + esc(r.nom) + '</span></h2>' + spe.map(function (x) {
+        var c = M.culture(x.culture);
+        var best = M.gestesDe(c).map(function (g) { return M.conseilGeste(c, g, maintenant(), zoneId(), meteo()); }).reduce(function (a, b) { return b.niveau > a.niveau ? b : a; });
+        return '<a class="ligne" href="#/culture/' + c.id + '"><strong>' + c.emoji + ' ' + esc(x.variete.nom) + '</strong> ' + badge(best.nomGeste, best) + '<p class="petit">' + esc(x.variete.note || '') + (best.niveau === 0 ? ' · ' + esc(best.raison) : '') + '</p></a>';
+      }).join('') + '</section>';
+    }
     return h;
   }
 
@@ -2268,8 +2695,23 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
       '<li><strong>Froid :</strong> ' + (c.froid.sensible ? 'craint le gel ; nuits au-dessus de ' + c.froid.nuitIdeale + ' °C idéales' : 'supporte des gelées jusqu’à ' + c.froid.gelTolere + ' °C environ') + '</li>' +
       '<li><strong>Arrosage :</strong> ' + esc(c.arrosage.consigne) + '</li>' +
       '<li><strong>Récolte :</strong> ' + esc(c.recolte.signe) + (c.recolte.multiple ? ' Récoltes successives' + (c.recolte.duree ? ' ' + esc(c.recolte.duree) : '') + '.' : '') + '</li>' +
-      '<li><strong>Variétés connues :</strong> ' + c.varietes.map(function (v) { return esc(v.nom) + (v.note ? ' (' + esc(v.note) + ')' : ''); }).join(', ') + '</li>' +
+      '<li><strong>Variétés connues :</strong> ' + c.varietes.filter(function (v) { return !v.regions; }).map(function (v) { return esc(v.nom) + (v.note ? ' (' + esc(v.note) + ')' : ''); }).join(', ') + '</li>' +
       '</ul></section>';
+    var rid = regionId(), regionales = c.varietes.filter(function (v) { return v.regions; });
+    if (regionales.length) {
+      var miennes = regionales.filter(function (v) { return rid && v.regions.indexOf(rid) >= 0; });
+      h += '<section class="carte' + (miennes.length ? ' accent' : '') + '"><h2>🏷️ Variétés régionales</h2>' + regionales.map(function (v) {
+        var noms = v.regions.map(function (k) { return window.REGIONS.regions[k].nom; }).join(', ');
+        return '<p>' + (rid && v.regions.indexOf(rid) >= 0 ? '<strong>' + esc(v.nom) + '</strong> · <em>ta région</em>' : esc(v.nom) + ' <span class="petit">(' + esc(noms) + ')</span>') + (v.note ? '<br><span class="petit">' + esc(v.note) + '</span>' : '') + '</p>';
+      }).join('') + '</section>';
+    }
+    var as = window.ASSOCIATIONS.de(c.id);
+    h += '<section class="carte" data-test="associations"><h2>🤝 Bons voisins</h2>' +
+      '<p><strong>Se plaît à côté de :</strong> ' + (as.amis.length ? as.amis.map(function (id) { var x = M.culture(id); return x.emoji + ' ' + esc(x.nom); }).join(', ') : '—') + '</p>' +
+      (as.aEviter.length ? '<p><strong>À éviter à côté de :</strong></p><ul>' + as.aEviter.map(function (v) { var x = M.culture(v.id); return '<li>' + x.emoji + ' ' + esc(x.nom) + ' : ' + esc(v.raison) + '</li>'; }).join('') + '</ul>' : '') +
+      '<p class="petit">Repères de jardinier traditionnels, à prendre comme des conseils, pas comme des règles strictes.</p></section>';
+    var pbs = M.problemesDe(c.id);
+    if (pbs.length) h += '<section class="carte" data-test="problemes"><h2>🩺 Problèmes fréquents</h2>' + pbs.map(carteProbleme).join('') + '</section>';
     return h;
   }
 
@@ -2285,7 +2727,7 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     h += '<label class="champ">Pour quel espace ?<select data-action="choisir-espace">' + esp.map(function (x) { return '<option value="' + x.id + '"' + (x.id === e.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>'; }).join('') + '</select></label>';
     h += '<p class="petit">' + esc(descriptionEspace(e)) + '</p>';
     var actives = S.actives(e.id);
-    var sug = M.suggestions(e, maintenant(), zoneId(), meteo(), actives);
+    var sug = M.suggestions(e, maintenant(), zoneId(), meteo(), actives, regionId());
     var possibles = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau >= 1; });
     var plusTard = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau === 0; });
     var non = sug.filter(function (s) { return !s.compat.ok; });
@@ -2306,13 +2748,18 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     return '<div class="suggestion" data-test="sugg-' + c.id + '"><div class="titre-sugg"><strong>' + c.emoji + ' ' + esc(c.nom) + '</strong></div>' +
       badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p>' +
       '<p>👉 ' + esc(s.demarrage) + '</p><p class="petit">' + esc(capTxt) + (s.compat.notes.length ? ' · ' + esc(s.compat.notes.join(' · ')) : '') + '</p>' +
+      (s.voisins && s.voisins.amis.length ? '<p class="petit voisin-ok">✓ Bon voisin de : ' + esc(s.voisins.amis.join(', ')) + '</p>' : '') +
+      (s.voisins && s.voisins.aEviter.length ? '<p class="petit voisin-ko">⚠ À éviter près de ' + s.voisins.aEviter.map(function (v) { return esc(v.nom) + ' (' + esc(v.raison) + ')'; }).join(', ') + '</p>' : '') +
+      (s.regionales && s.regionales.length ? '<p class="petit">🏷️ Spécialité de ta région : ' + esc(s.regionales.map(function (v) { return v.nom; }).join(', ')) + '</p>' : '') +
       '<div class="actions"><a class="bouton secondaire" href="#/culture/' + c.id + '">Calendrier</a>' +
       (s.meilleur.geste === 'plantation' ? '<a class="bouton" href="#/demarrer/' + c.id + '/plante?espace=' + e.id + '">J’ai planté</a>' : '<a class="bouton" href="#/demarrer/' + c.id + '/seme?espace=' + e.id + '">J’ai semé</a>') +
       '</div></div>';
   }
   function descriptionEspace(e) {
     var soleil = { plein: 'plein soleil', 'mi-ombre': 'mi-ombre', ombre: 'ombre' }[e.soleil] || '';
-    return (e.type === 'bac' ? 'Bac' : 'Pleine terre') + ' de ' + e.longueur + ' × ' + e.largeur + ' cm' + (e.type === 'bac' && e.profondeur ? ', ' + e.profondeur + ' cm de terre' : '') + ', ' + soleil + ', ' + (e.pluie === 'abri' ? 'sous abri (la pluie ne l’atteint pas)' : 'à ciel ouvert');
+    return (e.type === 'bac' ? 'Bac' : 'Pleine terre') + ' de ' + e.longueur + ' × ' + e.largeur + ' cm' + (e.type === 'bac' && e.profondeur ? ', ' + e.profondeur + ' cm de terre' : '') + ', ' + soleil + ', ' + (e.pluie === 'abri' ? 'sous abri (la pluie ne l’atteint pas)' : 'à ciel ouvert') +
+      (e.orientation && window.TERRAIN.orientations[e.orientation] ? ', exposé ' + window.TERRAIN.orientations[e.orientation].nom.toLowerCase() : '') +
+      (e.sol && window.TERRAIN.sols[e.sol] ? ', ' + window.TERRAIN.sols[e.sol].nom.toLowerCase() : '');
   }
 
   /* ---------- Écran : démarrer une culture ---------- */
@@ -2334,7 +2781,10 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     } else h += '<input type="hidden" name="mode" value="' + modes[0] + '">';
     h += '<label class="champ">Date ' + (action === 'plante' ? 'de mise en terre' : 'du semis') + '<input type="date" name="date" required value="' + aujourdhuiISO() + '" max="' + aujourdhuiISO() + '"></label>';
     h += '<label class="champ">' + (modes.indexOf('semis_abri') >= 0 ? 'Bac ou parcelle (où la culture poussera)' : 'Bac ou parcelle') + '<select name="espace">' + esp.map(function (e) { return '<option value="' + e.id + '"' + (e.id === e0.id ? ' selected' : '') + '>' + esc(e.nom) + '</option>'; }).join('') + '</select></label>';
-    h += '<label class="champ">Variété (facultatif)<select name="variete"><option value="">Je ne sais pas / autre</option>' + c.varietes.map(function (v) { return '<option value="' + v.id + '">' + esc(v.nom) + '</option>'; }).join('') + '</select></label>';
+    var rid = regionId();
+    var vs = c.varietes.filter(function (v) { return !v.regions || (rid && v.regions.indexOf(rid) >= 0); });
+    vs.sort(function (a, b) { return (b.regions ? 1 : 0) - (a.regions ? 1 : 0); });
+    h += '<label class="champ">Variété (facultatif)<select name="variete"><option value="">Je ne sais pas / autre</option>' + vs.map(function (v) { return '<option value="' + v.id + '">' + esc(v.nom) + (v.regions ? ' — spécialité de ta région' : '') + '</option>'; }).join('') + '</select></label>';
     h += '<label class="champ">Nombre de ' + esc(c.unite) + ' (environ)<input type="number" name="quantite" min="1" step="1" value="' + Math.max(1, cap.libre || 1) + '"></label>';
     h += '<p class="petit">Place disponible estimée dans « ' + esc(e0.nom) + ' » : ' + cap.libre + ' ' + esc(unite(cap.libre, c.unite)) + '.</p>';
     h += '<button class="bouton" type="submit" data-test="enregistrer">Enregistrer</button></form>';
@@ -2394,6 +2844,10 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     }
     h += '</section>';
     h += '<section class="carte"><h2>Arrosage de ce bac</h2>' + (S.espace(p.espaceId) ? carteArrosage(etatArrosage(S.espace(p.espaceId))) : '') + '</section>';
+    if (!p.terminee) {
+      h += '<section class="carte"><h2>🩺 Un souci ?</h2><p>Taches, feuilles trouées, insectes, plant qui flétrit…</p><a class="bouton secondaire" href="#/problemes?culture=' + c.id + '&retour=' + encodeURIComponent('#/suivi/' + p.id) + '" data-test="souci">Trouver ce qui se passe</a></section>';
+      h += '<section class="carte"><h2>📅 Rappels</h2><p class="petit">Levée, étapes à surveiller et récolte de cette culture.</p>' + blocRappels([p], false) + '</section>';
+    }
     h += '<p class="centre"><button class="lien danger" data-action="supprimer-plantation" data-id="' + p.id + '">Supprimer ce suivi</button></p>';
     return h;
   }
@@ -2448,6 +2902,8 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     }).join('') : '<p>Aucune. Va dans « J’ai envie de planter… » pour commencer.</p>') + '</section>';
     var finies = S.etat.plantations.filter(function (x) { return x.terminee; });
     if (finies.length) h += '<details class="carte"><summary>Cultures terminées (' + finies.length + ')</summary>' + finies.map(function (pl) { var c = M.culture(pl.cultureId); return '<a class="ligne" href="#/suivi/' + pl.id + '">' + c.emoji + ' ' + esc(c.nom) + ' <span class="petit">' + esc(nomEspace(pl.espaceId)) + '</span></a>'; }).join('') + '</details>';
+    if (actives.length) h += '<section class="carte"><h2>📅 Rappels sur mon téléphone</h2><p>Toutes les étapes et récoltes à venir de tes cultures, plus un rappel « vérifier la terre » le soir pour chaque bac, au bon rythme selon son type, son sol et son exposition.</p>' + blocRappels(actives, true) + '</section>';
+    h += '<p class="centre"><a href="#/problemes">🩺 Maladies et nuisibles courants</a></p>';
     h += '<p class="centre"><button class="lien danger" data-action="tout-effacer">Effacer toutes mes données</button></p>';
     return h;
   }
@@ -2463,6 +2919,10 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
       '<label class="champ">Profondeur de terre (cm, pour un bac)<input type="number" name="profondeur" min="5" max="200" value="' + (v.profondeur || '') + '"></label>' +
       '<fieldset class="champ"><legend>Ensoleillement</legend>' +
       [['plein', 'Plein soleil (6 h ou plus)'], ['mi-ombre', 'Mi-ombre (3 à 6 h)'], ['ombre', 'Ombre (moins de 3 h)']].map(function (o) { return '<label class="radio"><input type="radio" name="soleil" value="' + o[0] + '"' + (v.soleil === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>'; }).join('') + '</fieldset>' +
+      '<fieldset class="champ"><legend>Exposition (vers où il est tourné)</legend><div class="choix-grille">' +
+      [['sud', 'Sud'], ['est', 'Est'], ['ouest', 'Ouest'], ['nord', 'Nord'], ['', 'Je ne sais pas']].map(function (o) { return '<label class="radio"><input type="radio" name="orientation" value="' + o[0] + '"' + ((v.orientation || '') === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>'; }).join('') + '</div>' +
+      '<p class="petit">Sud = soleil toute la journée ; nord = à l’ombre d’un mur ou d’une maison.</p></fieldset>' +
+      '<label class="champ">Type de terre<select name="sol"><option value="">Je ne sais pas</option>' + Object.keys(window.TERRAIN.sols).map(function (k) { var x = window.TERRAIN.sols[k]; return '<option value="' + k + '"' + (v.sol === k ? ' selected' : '') + '>' + esc(x.nom) + ' — ' + esc(x.aide) + '</option>'; }).join('') + '</select></label>' +
       '<fieldset class="champ"><legend>Pluie</legend><label class="radio"><input type="radio" name="pluie" value="ciel_ouvert"' + (v.pluie !== 'abri' ? ' checked' : '') + '> À ciel ouvert (reçoit la pluie)</label><label class="radio"><input type="radio" name="pluie" value="abri"' + (v.pluie === 'abri' ? ' checked' : '') + '> Sous abri (avancée de toit, serre, véranda)</label></fieldset>' +
       '<button class="bouton" type="submit" data-test="enregistrer-espace">Enregistrer</button></form>';
     return h;
@@ -2472,6 +2932,7 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     var e = S.espace(id); if (!e) return ecranIntrouvable();
     var h = entete(esc(e.nom), '#/potager');
     h += '<p class="intro">' + esc(descriptionEspace(e)) + ' · <a href="#/espace/' + e.id + '/modifier">modifier</a></p>';
+    if (e.sol && window.TERRAIN.sols[e.sol]) h += '<section class="carte"><h2>Ta terre</h2><p>' + esc(window.TERRAIN.sols[e.sol].conseil) + '</p></section>';
     h += '<section class="carte"><h2>Arrosage</h2>' + carteArrosage(etatArrosage(e)) + '</section>';
     var act = S.actives(e.id);
     h += '<section class="carte"><h2>Cultures en cours</h2>' + (act.length ? act.map(function (pl) {
@@ -2481,6 +2942,40 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     return h;
   }
 
+  /* ---------- Maladies et nuisibles ---------- */
+  function carteProbleme(pb) {
+    return '<details class="probleme" id="pb-' + pb.id + '"><summary>' + pb.emoji + ' ' + esc(pb.nom) + '</summary>' +
+      '<p><strong>Ce que tu vois :</strong> ' + esc(pb.signes) + '</p>' +
+      '<p><strong>Pour l’éviter :</strong> ' + esc(pb.prevenir) + '</p>' +
+      '<p><strong>Si c’est là :</strong> ' + esc(pb.agir) + '</p></details>';
+  }
+  function ecranProblemes(params) {
+    var c = params.culture && M.culture(params.culture);
+    var h = entete(c ? 'Un souci avec ' + esc(c.nom.toLowerCase()) + ' ?' : 'Maladies et nuisibles', c && params.retour ? params.retour : '#/');
+    var liste = c ? M.problemesDe(c.id) : window.PROBLEMES;
+    h += '<p class="intro">Touche un problème pour voir comment le reconnaître et quoi faire, avec des solutions simples et sans produit chimique.</p>';
+    h += '<section class="carte">' + liste.map(carteProbleme).join('') + '</section>';
+    if (c) h += '<p class="centre"><a href="#/problemes">Voir tous les problèmes courants</a></p>';
+    return h;
+  }
+
+  /* ---------- Rappels agenda ---------- */
+  function blocRappels(plantations, avecArrosage) {
+    if (dansClaude) return '<p class="petit">Les rappels d’agenda sont disponibles dans la version du site (hugolaurentporte-png.github.io/mon-potager).</p>';
+    return '<div class="actions"><button class="bouton secondaire" data-action="rappels" data-ids="' + plantations.map(function (p) { return p.id; }).join(',') + '"' + (avecArrosage ? ' data-arrosage="1"' : '') + ' data-test="rappels">📅 Ajouter les rappels à mon agenda</button></div>' +
+      '<p class="petit">Crée un fichier agenda : ton téléphone propose de l’ajouter à ton calendrier, et tu reçois les rappels même quand l’appli est fermée.</p>';
+  }
+  function genererRappels(ids, avecArrosage) {
+    var ev = [];
+    ids.forEach(function (id) {
+      var p = S.plantation(id); if (!p) return;
+      var e = S.espace(p.espaceId);
+      ev = ev.concat(M.rappelsPlantation(Object.assign({ espaceNom: e ? e.nom : '' }, p), zoneId(), maintenant()));
+    });
+    if (avecArrosage) S.etat.espaces.forEach(function (e) { if (S.actives(e.id).length) ev.push(M.rappelArrosage(e, maintenant(), 40)); });
+    return ev;
+  }
+
   /* ---------- Écran : météo ---------- */
   function activesDetaillees() {
     return S.actives().map(function (p) { return { plantation: p, culture: M.culture(p.cultureId), espace: S.espace(p.espaceId) }; }).filter(function (a) { return a.culture; });
@@ -2488,7 +2983,8 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
   function alertesCourantes() { return M.alertesJardin(meteo(), maintenant(), activesDetaillees(), 7); }
   function carteAlerte(a) {
     return '<div class="alerte-ligne ' + a.gravite + '" data-type="' + a.type + '"><p><strong>' + esc(a.titre) + '</strong> <span class="petit">' + esc(a.quand) + '</span></p>' +
-      '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') + '</div>';
+      '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') +
+      (a.probleme ? '<a class="lien-meteo" href="#/problemes">Reconnaître et traiter</a>' : '') + '</div>';
   }
   function ecranMeteo() {
     var h = entete('Météo du jardin', '#/');
@@ -2536,6 +3032,7 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     else if (p[0] === 'suivi') { h = ecranSuivi(p[1]); onglet = 'potager'; }
     else if (p[0] === 'arrosage') { h = ecranArrosage(); onglet = 'arrosage'; }
     else if (p[0] === 'meteo') { h = ecranMeteo(); onglet = 'meteo'; }
+    else if (p[0] === 'problemes') { h = ecranProblemes(r.q); onglet = 'planter'; }
     else if (p[0] === 'potager') { h = ecranPotager(); onglet = 'potager'; }
     else if (p[0] === 'espace' && p[1] === 'nouveau') { h = ecranEspaceForm(null, r.q); onglet = 'potager'; }
     else if (p[0] === 'espace' && p[2] === 'modifier') { h = ecranEspaceForm(p[1], r.q); onglet = 'potager'; }
@@ -2564,6 +3061,12 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     else if (a === 'supprimer-espace') { confirmer(b, function () { S.supprimerEspace(id); aller('#/potager'); }); }
     else if (a === 'tout-effacer') { confirmer(b, function () { S.toutEffacer(); aller('#/'); }); }
     else if (a === 'recharger-meteo') { chargerMeteo(true); }
+    else if (a === 'rappels') {
+      var ev = genererRappels((b.getAttribute('data-ids') || '').split(',').filter(Boolean), b.getAttribute('data-arrosage') === '1');
+      if (!ev.length) { flash('Aucun rappel à venir pour l’instant'); return; }
+      window.dernierIcs = M.ics(ev, maintenant());
+      flash(telecharger('potager-rappels.ics', window.dernierIcs, 'text/calendar') ? ev.length + ' rappel' + (ev.length > 1 ? 's' : '') + ' : ouvre le fichier pour l’ajouter à ton agenda' : 'Impossible de créer le fichier sur cet appareil');
+    }
     else if (a === 'choisir-commune') {
       var c = JSON.parse(b.getAttribute('data-commune'));
       choisirCommune(c);
@@ -2596,7 +3099,7 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
       if (!ids.length) { flash('Coche au moins un espace'); return; }
       S.arroser(ids); flash('Arrosage noté pour ' + ids.length + ' espace' + (ids.length > 1 ? 's' : '')); rendre();
     } else if (type === 'espace') {
-      var champs = { nom: fd.get('nom').trim(), type: fd.get('type'), longueur: +fd.get('longueur'), largeur: +fd.get('largeur'), profondeur: fd.get('type') === 'bac' ? (+fd.get('profondeur') || null) : null, soleil: fd.get('soleil'), pluie: fd.get('pluie') };
+      var champs = { nom: fd.get('nom').trim(), type: fd.get('type'), longueur: +fd.get('longueur'), largeur: +fd.get('largeur'), profondeur: fd.get('type') === 'bac' ? (+fd.get('profondeur') || null) : null, soleil: fd.get('soleil'), pluie: fd.get('pluie'), orientation: fd.get('orientation') || null, sol: fd.get('sol') || null };
       var idE = f.getAttribute('data-id');
       if (idE) { S.modifierEspace(idE, champs); aller('#/espace/' + idE); }
       else { var e = S.ajouterEspace(champs); var ret = f.getAttribute('data-retour'); aller(ret || '#/espace/' + e.id); }
@@ -2639,7 +3142,7 @@ if (typeof module !== 'undefined') module.exports = DEPARTEMENTS;
     var fin = function (alt) {
       var z = window.CLIMATS.detecter(c.lat, c.lon, alt);
       window.CLIMATS.definirLocale(null);
-      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z, zoneManuelle: false, climatLocal: null, climatLocalEssai: null });
+      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, departement: /^(\d{2}|2A|2B)$/.test(c.departement || '') ? c.departement : (c.codePostal || '').slice(0, 2), lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z, zoneManuelle: false, climatLocal: null, climatLocalEssai: null });
       calculerClimatLocal();
       flash('Commune enregistrée : climat ' + M.zone(z).nom.toLowerCase());
       chargerMeteo(true);

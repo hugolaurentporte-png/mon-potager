@@ -218,3 +218,48 @@ test('Climat local : gelées réelles de la commune', () => {
   assert.ok(M.niveauClimatique(t, 'plantation', d, 'local').niveau >= 2, 'plantation plus tôt dans une commune plus douce');
   C.definirLocale(null);
 });
+
+test('Exposition, sol, associations, régions, maladies, rappels', () => {
+  const nord = { type: 'bac', longueur: 100, largeur: 40, profondeur: 30, soleil: 'mi-ombre', pluie: 'ciel_ouvert', orientation: 'nord' };
+  assert.equal(M.compatibilite(M.culture('tomate'), Object.assign({}, nord, { soleil: 'plein' })).ok, false);
+  assert.ok(M.compatibilite(M.culture('laitue'), nord).ok);
+  const sud = Object.assign({}, nord, { orientation: 'sud', soleil: 'plein' });
+  assert.equal(M.compatibilite(M.culture('tomate'), sud).bonus, 1);
+  assert.match(M.compatibilite(M.culture('carotte'), { type: 'pleine_terre', longueur: 200, largeur: 100, soleil: 'plein', sol: 'argileux' }).notes.join(), /variété ronde/);
+  // Arrosage : sol argileux = vérifier moins souvent, sableux plus souvent
+  const t0 = le('2027-06-10', 8), cult = [{ cultureId: 'laitue', mode: 'plant', date: '2027-05-20', observations: { reprise: '2027-05-26' } }];
+  const base = { id: 'a', type: 'pleine_terre', pluie: 'abri' };
+  const arg = M.arrosage(Object.assign({ sol: 'argileux' }, base), cult, [{ date: t0.toISOString() }], [], null, 'tempere', t0);
+  const sab = M.arrosage(Object.assign({ sol: 'sableux' }, base), cult, [{ date: t0.toISOString() }], [], null, 'tempere', t0);
+  assert.ok(arg.prochaine > sab.prochaine);
+  // Associations
+  const A = require('../data/associations.js');
+  assert.equal(A.entre('ail', 'haricot-nain').type, 'eviter');
+  assert.equal(A.entre('carotte', 'oignon').type, 'ami');
+  const grand = { type: 'pleine_terre', longueur: 300, largeur: 120, soleil: 'plein', pluie: 'ciel_ouvert' };
+  const sug = M.suggestions(grand, le('2027-05-20'), 'tempere', null, [{ cultureId: 'ail', quantite: 10 }], 'occitanie');
+  const har = sug.find(s => s.culture.id === 'haricot-nain');
+  assert.equal(har.voisins.aEviter[0].nom, 'Ail');
+  assert.ok(sug.find(s => s.culture.id === 'oignon').regionales.some(v => /Cévennes/.test(v.nom)));
+  // Régions
+  const R = require('../data/regions.js');
+  assert.equal(R.depuisCodePostal('29680').id, 'bretagne');
+  assert.equal(R.depuisCodePostal('75011').id, 'ile-de-france');
+  assert.ok(M.culture('oignon').varietes.some(v => v.id === 'rose-roscoff'), 'variétés régionales ajoutées aux fiches');
+  // Variété régionale utilisable pour l'estimation
+  const s = M.suivi({ cultureId: 'haricot-nain', mode: 'semis_place', date: '2027-05-20', varieteId: 'coco-paimpol', observations: {} }, 'tempere', le('2027-05-21'), null);
+  const s0 = M.suivi({ cultureId: 'haricot-nain', mode: 'semis_place', date: '2027-05-20', observations: {} }, 'tempere', le('2027-05-21'), null);
+  assert.ok(s.recolte.du > s0.recolte.du);
+  // Maladies : chaque culture a au moins un problème décrit ; alerte mildiou par temps humide
+  M.cultures().forEach(c => assert.ok(M.problemesDe(c.id).length >= 1, c.id));
+  const { reponseOpenMeteo, serie } = require('./outils.js');
+  const humide = globalThis.Meteo.normaliser(reponseOpenMeteo(serie('2027-06-08', [[14, 22], [14, 22], [14, 22, 6], [14, 21, 8], [14, 22, 5], [14, 23], [14, 23], [14, 23], [14, 23], [14, 23]])));
+  const al = M.alertesJardin(humide, le('2027-06-10'), [{ plantation: {}, culture: M.culture('tomate'), espace: {} }]);
+  assert.ok(al.some(a => a.probleme === 'mildiou'));
+  // Rappels agenda
+  const ev = M.rappelsPlantation({ id: 'p1', cultureId: 'radis', mode: 'semis_place', date: '2027-04-06', observations: {} }, 'tempere', le('2027-04-06'));
+  assert.ok(ev.length >= 2);
+  const f = M.ics(ev.concat([M.rappelArrosage({ id: 'b', nom: 'Bac', type: 'bac', sol: 'sableux' }, le('2027-04-06', 10))]), le('2027-04-06'));
+  assert.match(f, /^BEGIN:VCALENDAR/); assert.match(f, /RRULE:FREQ=DAILY;INTERVAL=1;COUNT=40/); assert.match(f, /DTSTART;VALUE=DATE:20270409/);
+  assert.equal((f.match(/BEGIN:VEVENT/g) || []).length, ev.length + 1);
+});

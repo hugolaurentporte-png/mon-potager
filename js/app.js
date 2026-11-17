@@ -12,6 +12,20 @@
   function maintenant() { return new Date(); }
   function unite(n, u) { return n > 1 || /s$/.test(u) && /(radis)$/.test(u) ? u : u.replace(/s$/, ''); }
   function aujourdhuiISO() { return D.iso(maintenant()); }
+  function region() {
+    var p = S.etat.profil; if (!p) return null;
+    return (p.departement && window.REGIONS.depuisDepartement(p.departement)) || window.REGIONS.depuisCodePostal(p.codePostal);
+  }
+  function regionId() { var r = region(); return r ? r.id : null; }
+  var dansClaude = !!(window.claude && window.claude.use);
+  function telecharger(nom, contenu, type) {
+    try {
+      var url = URL.createObjectURL(new Blob([contenu], { type: type }));
+      var a = document.createElement('a'); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      return true;
+    } catch (e) { return false; }
+  }
   function zoneId() { return (S.etat.profil && S.etat.profil.zone) || 'tempere'; }
   function meteo() { return meteoEtat.meteo; }
   // Navigation interne : fonctionne aussi dans un cadre où l'adresse ne peut pas changer.
@@ -138,6 +152,15 @@
       return '<a class="ligne" href="#/culture/' + s.culture.id + '"><strong>' + s.culture.emoji + ' ' + esc(s.culture.nom) + '</strong> ' + badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p></a>';
     }).join('');
     h += '</section>';
+    var r = region();
+    if (r) {
+      var spe = window.REGIONS.specialitesDe(r.id);
+      if (spe.length) h += '<section class="carte" data-test="region"><h2>🏷️ Spécialités de ta région <span class="petit">· ' + esc(r.nom) + '</span></h2>' + spe.map(function (x) {
+        var c = M.culture(x.culture);
+        var best = M.gestesDe(c).map(function (g) { return M.conseilGeste(c, g, maintenant(), zoneId(), meteo()); }).reduce(function (a, b) { return b.niveau > a.niveau ? b : a; });
+        return '<a class="ligne" href="#/culture/' + c.id + '"><strong>' + c.emoji + ' ' + esc(x.variete.nom) + '</strong> ' + badge(best.nomGeste, best) + '<p class="petit">' + esc(x.variete.note || '') + (best.niveau === 0 ? ' · ' + esc(best.raison) : '') + '</p></a>';
+      }).join('') + '</section>';
+    }
     return h;
   }
 
@@ -208,8 +231,23 @@
       '<li><strong>Froid :</strong> ' + (c.froid.sensible ? 'craint le gel ; nuits au-dessus de ' + c.froid.nuitIdeale + ' °C idéales' : 'supporte des gelées jusqu’à ' + c.froid.gelTolere + ' °C environ') + '</li>' +
       '<li><strong>Arrosage :</strong> ' + esc(c.arrosage.consigne) + '</li>' +
       '<li><strong>Récolte :</strong> ' + esc(c.recolte.signe) + (c.recolte.multiple ? ' Récoltes successives' + (c.recolte.duree ? ' ' + esc(c.recolte.duree) : '') + '.' : '') + '</li>' +
-      '<li><strong>Variétés connues :</strong> ' + c.varietes.map(function (v) { return esc(v.nom) + (v.note ? ' (' + esc(v.note) + ')' : ''); }).join(', ') + '</li>' +
+      '<li><strong>Variétés connues :</strong> ' + c.varietes.filter(function (v) { return !v.regions; }).map(function (v) { return esc(v.nom) + (v.note ? ' (' + esc(v.note) + ')' : ''); }).join(', ') + '</li>' +
       '</ul></section>';
+    var rid = regionId(), regionales = c.varietes.filter(function (v) { return v.regions; });
+    if (regionales.length) {
+      var miennes = regionales.filter(function (v) { return rid && v.regions.indexOf(rid) >= 0; });
+      h += '<section class="carte' + (miennes.length ? ' accent' : '') + '"><h2>🏷️ Variétés régionales</h2>' + regionales.map(function (v) {
+        var noms = v.regions.map(function (k) { return window.REGIONS.regions[k].nom; }).join(', ');
+        return '<p>' + (rid && v.regions.indexOf(rid) >= 0 ? '<strong>' + esc(v.nom) + '</strong> · <em>ta région</em>' : esc(v.nom) + ' <span class="petit">(' + esc(noms) + ')</span>') + (v.note ? '<br><span class="petit">' + esc(v.note) + '</span>' : '') + '</p>';
+      }).join('') + '</section>';
+    }
+    var as = window.ASSOCIATIONS.de(c.id);
+    h += '<section class="carte" data-test="associations"><h2>🤝 Bons voisins</h2>' +
+      '<p><strong>Se plaît à côté de :</strong> ' + (as.amis.length ? as.amis.map(function (id) { var x = M.culture(id); return x.emoji + ' ' + esc(x.nom); }).join(', ') : '—') + '</p>' +
+      (as.aEviter.length ? '<p><strong>À éviter à côté de :</strong></p><ul>' + as.aEviter.map(function (v) { var x = M.culture(v.id); return '<li>' + x.emoji + ' ' + esc(x.nom) + ' : ' + esc(v.raison) + '</li>'; }).join('') + '</ul>' : '') +
+      '<p class="petit">Repères de jardinier traditionnels, à prendre comme des conseils, pas comme des règles strictes.</p></section>';
+    var pbs = M.problemesDe(c.id);
+    if (pbs.length) h += '<section class="carte" data-test="problemes"><h2>🩺 Problèmes fréquents</h2>' + pbs.map(carteProbleme).join('') + '</section>';
     return h;
   }
 
@@ -225,7 +263,7 @@
     h += '<label class="champ">Pour quel espace ?<select data-action="choisir-espace">' + esp.map(function (x) { return '<option value="' + x.id + '"' + (x.id === e.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>'; }).join('') + '</select></label>';
     h += '<p class="petit">' + esc(descriptionEspace(e)) + '</p>';
     var actives = S.actives(e.id);
-    var sug = M.suggestions(e, maintenant(), zoneId(), meteo(), actives);
+    var sug = M.suggestions(e, maintenant(), zoneId(), meteo(), actives, regionId());
     var possibles = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau >= 1; });
     var plusTard = sug.filter(function (s) { return s.compat.ok && s.meilleur.niveau === 0; });
     var non = sug.filter(function (s) { return !s.compat.ok; });
@@ -246,13 +284,18 @@
     return '<div class="suggestion" data-test="sugg-' + c.id + '"><div class="titre-sugg"><strong>' + c.emoji + ' ' + esc(c.nom) + '</strong></div>' +
       badge(s.meilleur.nomGeste, s.meilleur) + '<p class="raison">' + esc(capitale(s.meilleur.raison)) + '</p>' +
       '<p>👉 ' + esc(s.demarrage) + '</p><p class="petit">' + esc(capTxt) + (s.compat.notes.length ? ' · ' + esc(s.compat.notes.join(' · ')) : '') + '</p>' +
+      (s.voisins && s.voisins.amis.length ? '<p class="petit voisin-ok">✓ Bon voisin de : ' + esc(s.voisins.amis.join(', ')) + '</p>' : '') +
+      (s.voisins && s.voisins.aEviter.length ? '<p class="petit voisin-ko">⚠ À éviter près de ' + s.voisins.aEviter.map(function (v) { return esc(v.nom) + ' (' + esc(v.raison) + ')'; }).join(', ') + '</p>' : '') +
+      (s.regionales && s.regionales.length ? '<p class="petit">🏷️ Spécialité de ta région : ' + esc(s.regionales.map(function (v) { return v.nom; }).join(', ')) + '</p>' : '') +
       '<div class="actions"><a class="bouton secondaire" href="#/culture/' + c.id + '">Calendrier</a>' +
       (s.meilleur.geste === 'plantation' ? '<a class="bouton" href="#/demarrer/' + c.id + '/plante?espace=' + e.id + '">J’ai planté</a>' : '<a class="bouton" href="#/demarrer/' + c.id + '/seme?espace=' + e.id + '">J’ai semé</a>') +
       '</div></div>';
   }
   function descriptionEspace(e) {
     var soleil = { plein: 'plein soleil', 'mi-ombre': 'mi-ombre', ombre: 'ombre' }[e.soleil] || '';
-    return (e.type === 'bac' ? 'Bac' : 'Pleine terre') + ' de ' + e.longueur + ' × ' + e.largeur + ' cm' + (e.type === 'bac' && e.profondeur ? ', ' + e.profondeur + ' cm de terre' : '') + ', ' + soleil + ', ' + (e.pluie === 'abri' ? 'sous abri (la pluie ne l’atteint pas)' : 'à ciel ouvert');
+    return (e.type === 'bac' ? 'Bac' : 'Pleine terre') + ' de ' + e.longueur + ' × ' + e.largeur + ' cm' + (e.type === 'bac' && e.profondeur ? ', ' + e.profondeur + ' cm de terre' : '') + ', ' + soleil + ', ' + (e.pluie === 'abri' ? 'sous abri (la pluie ne l’atteint pas)' : 'à ciel ouvert') +
+      (e.orientation && window.TERRAIN.orientations[e.orientation] ? ', exposé ' + window.TERRAIN.orientations[e.orientation].nom.toLowerCase() : '') +
+      (e.sol && window.TERRAIN.sols[e.sol] ? ', ' + window.TERRAIN.sols[e.sol].nom.toLowerCase() : '');
   }
 
   /* ---------- Écran : démarrer une culture ---------- */
@@ -274,7 +317,10 @@
     } else h += '<input type="hidden" name="mode" value="' + modes[0] + '">';
     h += '<label class="champ">Date ' + (action === 'plante' ? 'de mise en terre' : 'du semis') + '<input type="date" name="date" required value="' + aujourdhuiISO() + '" max="' + aujourdhuiISO() + '"></label>';
     h += '<label class="champ">' + (modes.indexOf('semis_abri') >= 0 ? 'Bac ou parcelle (où la culture poussera)' : 'Bac ou parcelle') + '<select name="espace">' + esp.map(function (e) { return '<option value="' + e.id + '"' + (e.id === e0.id ? ' selected' : '') + '>' + esc(e.nom) + '</option>'; }).join('') + '</select></label>';
-    h += '<label class="champ">Variété (facultatif)<select name="variete"><option value="">Je ne sais pas / autre</option>' + c.varietes.map(function (v) { return '<option value="' + v.id + '">' + esc(v.nom) + '</option>'; }).join('') + '</select></label>';
+    var rid = regionId();
+    var vs = c.varietes.filter(function (v) { return !v.regions || (rid && v.regions.indexOf(rid) >= 0); });
+    vs.sort(function (a, b) { return (b.regions ? 1 : 0) - (a.regions ? 1 : 0); });
+    h += '<label class="champ">Variété (facultatif)<select name="variete"><option value="">Je ne sais pas / autre</option>' + vs.map(function (v) { return '<option value="' + v.id + '">' + esc(v.nom) + (v.regions ? ' — spécialité de ta région' : '') + '</option>'; }).join('') + '</select></label>';
     h += '<label class="champ">Nombre de ' + esc(c.unite) + ' (environ)<input type="number" name="quantite" min="1" step="1" value="' + Math.max(1, cap.libre || 1) + '"></label>';
     h += '<p class="petit">Place disponible estimée dans « ' + esc(e0.nom) + ' » : ' + cap.libre + ' ' + esc(unite(cap.libre, c.unite)) + '.</p>';
     h += '<button class="bouton" type="submit" data-test="enregistrer">Enregistrer</button></form>';
@@ -334,6 +380,10 @@
     }
     h += '</section>';
     h += '<section class="carte"><h2>Arrosage de ce bac</h2>' + (S.espace(p.espaceId) ? carteArrosage(etatArrosage(S.espace(p.espaceId))) : '') + '</section>';
+    if (!p.terminee) {
+      h += '<section class="carte"><h2>🩺 Un souci ?</h2><p>Taches, feuilles trouées, insectes, plant qui flétrit…</p><a class="bouton secondaire" href="#/problemes?culture=' + c.id + '&retour=' + encodeURIComponent('#/suivi/' + p.id) + '" data-test="souci">Trouver ce qui se passe</a></section>';
+      h += '<section class="carte"><h2>📅 Rappels</h2><p class="petit">Levée, étapes à surveiller et récolte de cette culture.</p>' + blocRappels([p], false) + '</section>';
+    }
     h += '<p class="centre"><button class="lien danger" data-action="supprimer-plantation" data-id="' + p.id + '">Supprimer ce suivi</button></p>';
     return h;
   }
@@ -388,6 +438,8 @@
     }).join('') : '<p>Aucune. Va dans « J’ai envie de planter… » pour commencer.</p>') + '</section>';
     var finies = S.etat.plantations.filter(function (x) { return x.terminee; });
     if (finies.length) h += '<details class="carte"><summary>Cultures terminées (' + finies.length + ')</summary>' + finies.map(function (pl) { var c = M.culture(pl.cultureId); return '<a class="ligne" href="#/suivi/' + pl.id + '">' + c.emoji + ' ' + esc(c.nom) + ' <span class="petit">' + esc(nomEspace(pl.espaceId)) + '</span></a>'; }).join('') + '</details>';
+    if (actives.length) h += '<section class="carte"><h2>📅 Rappels sur mon téléphone</h2><p>Toutes les étapes et récoltes à venir de tes cultures, plus un rappel « vérifier la terre » le soir pour chaque bac, au bon rythme selon son type, son sol et son exposition.</p>' + blocRappels(actives, true) + '</section>';
+    h += '<p class="centre"><a href="#/problemes">🩺 Maladies et nuisibles courants</a></p>';
     h += '<p class="centre"><button class="lien danger" data-action="tout-effacer">Effacer toutes mes données</button></p>';
     return h;
   }
@@ -403,6 +455,10 @@
       '<label class="champ">Profondeur de terre (cm, pour un bac)<input type="number" name="profondeur" min="5" max="200" value="' + (v.profondeur || '') + '"></label>' +
       '<fieldset class="champ"><legend>Ensoleillement</legend>' +
       [['plein', 'Plein soleil (6 h ou plus)'], ['mi-ombre', 'Mi-ombre (3 à 6 h)'], ['ombre', 'Ombre (moins de 3 h)']].map(function (o) { return '<label class="radio"><input type="radio" name="soleil" value="' + o[0] + '"' + (v.soleil === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>'; }).join('') + '</fieldset>' +
+      '<fieldset class="champ"><legend>Exposition (vers où il est tourné)</legend><div class="choix-grille">' +
+      [['sud', 'Sud'], ['est', 'Est'], ['ouest', 'Ouest'], ['nord', 'Nord'], ['', 'Je ne sais pas']].map(function (o) { return '<label class="radio"><input type="radio" name="orientation" value="' + o[0] + '"' + ((v.orientation || '') === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>'; }).join('') + '</div>' +
+      '<p class="petit">Sud = soleil toute la journée ; nord = à l’ombre d’un mur ou d’une maison.</p></fieldset>' +
+      '<label class="champ">Type de terre<select name="sol"><option value="">Je ne sais pas</option>' + Object.keys(window.TERRAIN.sols).map(function (k) { var x = window.TERRAIN.sols[k]; return '<option value="' + k + '"' + (v.sol === k ? ' selected' : '') + '>' + esc(x.nom) + ' — ' + esc(x.aide) + '</option>'; }).join('') + '</select></label>' +
       '<fieldset class="champ"><legend>Pluie</legend><label class="radio"><input type="radio" name="pluie" value="ciel_ouvert"' + (v.pluie !== 'abri' ? ' checked' : '') + '> À ciel ouvert (reçoit la pluie)</label><label class="radio"><input type="radio" name="pluie" value="abri"' + (v.pluie === 'abri' ? ' checked' : '') + '> Sous abri (avancée de toit, serre, véranda)</label></fieldset>' +
       '<button class="bouton" type="submit" data-test="enregistrer-espace">Enregistrer</button></form>';
     return h;
@@ -412,6 +468,7 @@
     var e = S.espace(id); if (!e) return ecranIntrouvable();
     var h = entete(esc(e.nom), '#/potager');
     h += '<p class="intro">' + esc(descriptionEspace(e)) + ' · <a href="#/espace/' + e.id + '/modifier">modifier</a></p>';
+    if (e.sol && window.TERRAIN.sols[e.sol]) h += '<section class="carte"><h2>Ta terre</h2><p>' + esc(window.TERRAIN.sols[e.sol].conseil) + '</p></section>';
     h += '<section class="carte"><h2>Arrosage</h2>' + carteArrosage(etatArrosage(e)) + '</section>';
     var act = S.actives(e.id);
     h += '<section class="carte"><h2>Cultures en cours</h2>' + (act.length ? act.map(function (pl) {
@@ -421,6 +478,40 @@
     return h;
   }
 
+  /* ---------- Maladies et nuisibles ---------- */
+  function carteProbleme(pb) {
+    return '<details class="probleme" id="pb-' + pb.id + '"><summary>' + pb.emoji + ' ' + esc(pb.nom) + '</summary>' +
+      '<p><strong>Ce que tu vois :</strong> ' + esc(pb.signes) + '</p>' +
+      '<p><strong>Pour l’éviter :</strong> ' + esc(pb.prevenir) + '</p>' +
+      '<p><strong>Si c’est là :</strong> ' + esc(pb.agir) + '</p></details>';
+  }
+  function ecranProblemes(params) {
+    var c = params.culture && M.culture(params.culture);
+    var h = entete(c ? 'Un souci avec ' + esc(c.nom.toLowerCase()) + ' ?' : 'Maladies et nuisibles', c && params.retour ? params.retour : '#/');
+    var liste = c ? M.problemesDe(c.id) : window.PROBLEMES;
+    h += '<p class="intro">Touche un problème pour voir comment le reconnaître et quoi faire, avec des solutions simples et sans produit chimique.</p>';
+    h += '<section class="carte">' + liste.map(carteProbleme).join('') + '</section>';
+    if (c) h += '<p class="centre"><a href="#/problemes">Voir tous les problèmes courants</a></p>';
+    return h;
+  }
+
+  /* ---------- Rappels agenda ---------- */
+  function blocRappels(plantations, avecArrosage) {
+    if (dansClaude) return '<p class="petit">Les rappels d’agenda sont disponibles dans la version du site (hugolaurentporte-png.github.io/mon-potager).</p>';
+    return '<div class="actions"><button class="bouton secondaire" data-action="rappels" data-ids="' + plantations.map(function (p) { return p.id; }).join(',') + '"' + (avecArrosage ? ' data-arrosage="1"' : '') + ' data-test="rappels">📅 Ajouter les rappels à mon agenda</button></div>' +
+      '<p class="petit">Crée un fichier agenda : ton téléphone propose de l’ajouter à ton calendrier, et tu reçois les rappels même quand l’appli est fermée.</p>';
+  }
+  function genererRappels(ids, avecArrosage) {
+    var ev = [];
+    ids.forEach(function (id) {
+      var p = S.plantation(id); if (!p) return;
+      var e = S.espace(p.espaceId);
+      ev = ev.concat(M.rappelsPlantation(Object.assign({ espaceNom: e ? e.nom : '' }, p), zoneId(), maintenant()));
+    });
+    if (avecArrosage) S.etat.espaces.forEach(function (e) { if (S.actives(e.id).length) ev.push(M.rappelArrosage(e, maintenant(), 40)); });
+    return ev;
+  }
+
   /* ---------- Écran : météo ---------- */
   function activesDetaillees() {
     return S.actives().map(function (p) { return { plantation: p, culture: M.culture(p.cultureId), espace: S.espace(p.espaceId) }; }).filter(function (a) { return a.culture; });
@@ -428,7 +519,8 @@
   function alertesCourantes() { return M.alertesJardin(meteo(), maintenant(), activesDetaillees(), 7); }
   function carteAlerte(a) {
     return '<div class="alerte-ligne ' + a.gravite + '" data-type="' + a.type + '"><p><strong>' + esc(a.titre) + '</strong> <span class="petit">' + esc(a.quand) + '</span></p>' +
-      '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') + '</div>';
+      '<p>' + esc(a.conseil) + '</p>' + (a.concerne.length ? '<p class="petit">Concerne : ' + esc(a.concerne.join(', ')) + '</p>' : '') +
+      (a.probleme ? '<a class="lien-meteo" href="#/problemes">Reconnaître et traiter</a>' : '') + '</div>';
   }
   function ecranMeteo() {
     var h = entete('Météo du jardin', '#/');
@@ -476,6 +568,7 @@
     else if (p[0] === 'suivi') { h = ecranSuivi(p[1]); onglet = 'potager'; }
     else if (p[0] === 'arrosage') { h = ecranArrosage(); onglet = 'arrosage'; }
     else if (p[0] === 'meteo') { h = ecranMeteo(); onglet = 'meteo'; }
+    else if (p[0] === 'problemes') { h = ecranProblemes(r.q); onglet = 'planter'; }
     else if (p[0] === 'potager') { h = ecranPotager(); onglet = 'potager'; }
     else if (p[0] === 'espace' && p[1] === 'nouveau') { h = ecranEspaceForm(null, r.q); onglet = 'potager'; }
     else if (p[0] === 'espace' && p[2] === 'modifier') { h = ecranEspaceForm(p[1], r.q); onglet = 'potager'; }
@@ -504,6 +597,12 @@
     else if (a === 'supprimer-espace') { confirmer(b, function () { S.supprimerEspace(id); aller('#/potager'); }); }
     else if (a === 'tout-effacer') { confirmer(b, function () { S.toutEffacer(); aller('#/'); }); }
     else if (a === 'recharger-meteo') { chargerMeteo(true); }
+    else if (a === 'rappels') {
+      var ev = genererRappels((b.getAttribute('data-ids') || '').split(',').filter(Boolean), b.getAttribute('data-arrosage') === '1');
+      if (!ev.length) { flash('Aucun rappel à venir pour l’instant'); return; }
+      window.dernierIcs = M.ics(ev, maintenant());
+      flash(telecharger('potager-rappels.ics', window.dernierIcs, 'text/calendar') ? ev.length + ' rappel' + (ev.length > 1 ? 's' : '') + ' : ouvre le fichier pour l’ajouter à ton agenda' : 'Impossible de créer le fichier sur cet appareil');
+    }
     else if (a === 'choisir-commune') {
       var c = JSON.parse(b.getAttribute('data-commune'));
       choisirCommune(c);
@@ -536,7 +635,7 @@
       if (!ids.length) { flash('Coche au moins un espace'); return; }
       S.arroser(ids); flash('Arrosage noté pour ' + ids.length + ' espace' + (ids.length > 1 ? 's' : '')); rendre();
     } else if (type === 'espace') {
-      var champs = { nom: fd.get('nom').trim(), type: fd.get('type'), longueur: +fd.get('longueur'), largeur: +fd.get('largeur'), profondeur: fd.get('type') === 'bac' ? (+fd.get('profondeur') || null) : null, soleil: fd.get('soleil'), pluie: fd.get('pluie') };
+      var champs = { nom: fd.get('nom').trim(), type: fd.get('type'), longueur: +fd.get('longueur'), largeur: +fd.get('largeur'), profondeur: fd.get('type') === 'bac' ? (+fd.get('profondeur') || null) : null, soleil: fd.get('soleil'), pluie: fd.get('pluie'), orientation: fd.get('orientation') || null, sol: fd.get('sol') || null };
       var idE = f.getAttribute('data-id');
       if (idE) { S.modifierEspace(idE, champs); aller('#/espace/' + idE); }
       else { var e = S.ajouterEspace(champs); var ret = f.getAttribute('data-retour'); aller(ret || '#/espace/' + e.id); }
@@ -579,7 +678,7 @@
     var fin = function (alt) {
       var z = window.CLIMATS.detecter(c.lat, c.lon, alt);
       window.CLIMATS.definirLocale(null);
-      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z, zoneManuelle: false, climatLocal: null, climatLocalEssai: null });
+      S.definirProfil({ commune: c.nom, codePostal: c.codePostal, departement: /^(\d{2}|2A|2B)$/.test(c.departement || '') ? c.departement : (c.codePostal || '').slice(0, 2), lat: c.lat, lon: c.lon, altitude: alt, zone: z, zoneAuto: z, zoneManuelle: false, climatLocal: null, climatLocalEssai: null });
       calculerClimatLocal();
       flash('Commune enregistrée : climat ' + M.zone(z).nom.toLowerCase());
       chargerMeteo(true);

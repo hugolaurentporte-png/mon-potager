@@ -250,6 +250,60 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   assert.match(await page.innerText('main'), /calendrier climatique reste valable/);
   ok('Parcours 5 : météo indisponible → calendrier climatique conservé, limite affichée');
 
+  // ---------- Nouveautés : exposition, sol, associations, maladies, région, rappels ----------
+  meteoCourante = reponseOpenMeteo(serie('2027-04-12', [[6, 16], [6, 16], [6, 16], [7, 17], [7, 17], [7, 17], [8, 18], [8, 18], [8, 18], [8, 18], [8, 18]]));
+  await heure('2027-04-15T09:00:00+02:00');
+  await ouvrir('#/espace/nouveau');
+  await page.fill('input[name="nom"]', 'Coin nord');
+  await page.check('input[name="orientation"][value="nord"]');
+  await page.selectOption('select[name="sol"]', 'terreau');
+  await page.click('[data-test="enregistrer-espace"]');
+  await page.waitForTimeout(150);
+  const pageEsp = await page.innerText('main');
+  assert.match(pageEsp, /exposé nord/); assert.match(pageEsp, /terreau du commerce/i); assert.match(pageEsp, /s’épuise en un an/);
+  const idNord = page.url().split('/').pop();
+  await page.goto(base + '#/suggestions?espace=' + idNord);
+  await page.waitForTimeout(100);
+  const sugNord = await page.innerText('main');
+  assert.match(sugNord, /Peu adapté[\s\S]*Tomate[^\n]*exposition nord/);
+  assert.match(await page.innerText('[data-test="sugg-laitue"]'), /se plaît en exposition nord/);
+  // Associations dans les suggestions : de l'ail dans la parcelle → le haricot est à éviter
+  await page.goto(base + '#/demarrer/ail/plante');
+  await page.selectOption('select[name="espace"]', { label: 'Parcelle' });
+  await page.fill('input[name="quantite"]', '10');
+  await page.click('[data-test="enregistrer"]');
+  await page.waitForSelector('[data-test="prochaine"]');
+  const urlAil = page.url();
+  const idParcelle = await page.evaluate(() => Store.etat.espaces.find(e => e.nom === 'Parcelle').id);
+  await page.goto(base + '#/suggestions?espace=' + idParcelle);
+  await page.waitForTimeout(100);
+  assert.match(await page.innerText('[data-test="sugg-carotte"]'), /Bon voisin de : Ail/);
+  // Fiche culture : bons voisins et problèmes
+  await page.goto(base + '#/culture/haricot-nain');
+  assert.match(await page.innerText('[data-test="associations"]'), /À éviter à côté de[\s\S]*Ail/);
+  await page.goto(base + '#/culture/tomate');
+  await page.click('#pb-mildiou summary');
+  assert.match(await page.innerText('[data-test="problemes"]'), /Arrose au pied, jamais le feuillage/);
+  // Un souci depuis le suivi
+  await page.goto(urlAil);
+  await page.click('[data-test="souci"]');
+  await page.waitForTimeout(100);
+  assert.match(await page.innerText('main'), /Un souci avec ail[\s\S]*Rouille/);
+  // Région (Paris → Île-de-France)
+  await page.goto(base + '#/');
+  assert.match(await page.innerText('[data-test="region"]'), /Île-de-France[\s\S]*Laitue Gotte/);
+  await page.goto(base + '#/demarrer/laitue/seme');
+  assert.match(await page.innerText('select[name="variete"]'), /Gotte jaune d’or — spécialité de ta région/);
+  // Rappels agenda
+  await page.goto(base + '#/potager');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-test="rappels"]')]);
+  const fichier = fs.readFileSync(await dl.path(), 'utf8');
+  assert.equal(dl.suggestedFilename(), 'potager-rappels.ics');
+  assert.match(fichier, /BEGIN:VCALENDAR/); assert.match(fichier, /RRULE:FREQ=DAILY/); assert.match(fichier, /Ail/);
+  console.log('    agenda : ' + (fichier.match(/BEGIN:VEVENT/g) || []).length + ' rappels générés');
+  await capture('nouveautes-potager');
+  ok('Nouveautés : exposition nord écarte les tomates, sol pris en compte, bons voisins / à éviter, fiche maladies, spécialités régionales, fichier de rappels agenda');
+
   // ---------- 6. Les 15 cultures ----------
   await heure('2027-04-15T09:00:00+02:00');
   await page.goto(base + '#/envie');

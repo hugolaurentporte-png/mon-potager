@@ -9,6 +9,11 @@
   var CULTURES = racine.CULTURES || (typeof require !== 'undefined' && require('../data/cultures.js'));
   var ETAPES = racine.ETAPES || (typeof require !== 'undefined' && require('../data/etapes.js'));
   var CLIMATS = racine.CLIMATS || (typeof require !== 'undefined' && require('../data/climats.js'));
+  var TERRAIN = racine.TERRAIN || (typeof require !== 'undefined' && require('../data/terrain.js'));
+  var ASSOCIATIONS = racine.ASSOCIATIONS || (typeof require !== 'undefined' && require('../data/associations.js'));
+  var PROBLEMES = racine.PROBLEMES || (typeof require !== 'undefined' && require('../data/problemes.js'));
+  var REGIONS = racine.REGIONS || (typeof require !== 'undefined' && require('../data/regions.js'));
+  if (REGIONS && !racine.REGIONS) REGIONS.enrichir(CULTURES);
 
   var REGLES = {
     margeConditionsJours: 14,      // avant/après une fenêtre : « possible sous conditions »
@@ -253,7 +258,14 @@
     }
     if (capacite(c, espace, []).total < 1) raisons.push('espace trop petit (' + c.espacement.plant + ' × ' + c.espacement.rang + ' cm par plant)');
     if (espace.pluie === 'abri') notes.push('sous abri : pense à arroser, la pluie ne l’atteint pas');
-    return { ok: raisons.length === 0, raisons: raisons, notes: notes };
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation], bonus = 0;
+    if (o) {
+      if ((o.evite || []).indexOf(c.id) >= 0) raisons.push('exposition nord : trop fraîche pour cette culture');
+      else if ((o.aime || []).indexOf(c.id) >= 0) { bonus += 1; notes.push('se plaît en exposition ' + o.nom.toLowerCase()); }
+    }
+    var sol = espace.sol && TERRAIN.sols[espace.sol];
+    if (sol && sol.cultures && sol.cultures[c.id]) notes.push(sol.cultures[c.id]);
+    return { ok: raisons.length === 0, raisons: raisons, notes: notes, bonus: bonus };
   }
 
   function phraseDemarrage(c, g) {
@@ -262,7 +274,19 @@
   }
 
   /** Suggestions « Quoi planter cette semaine ? » pour un espace (ou sans espace) */
-  function suggestions(espace, date, zoneId, meteo, plantationsActives) {
+  /** Bons voisins et voisins à éviter parmi les cultures déjà présentes */
+  function voisinage(cultureId, actives) {
+    var amis = [], eviter = [], vus = {};
+    actives.forEach(function (p) {
+      if (p.cultureId === cultureId || vus[p.cultureId]) return;
+      vus[p.cultureId] = true;
+      var r = ASSOCIATIONS.entre(cultureId, p.cultureId), c = culture(p.cultureId);
+      if (!r || !c) return;
+      if (r.type === 'ami') amis.push(c.nom); else eviter.push({ nom: c.nom, raison: r.raison });
+    });
+    return { amis: amis, aEviter: eviter };
+  }
+  function suggestions(espace, date, zoneId, meteo, plantationsActives, regionId) {
     var res = [];
     CULTURES.forEach(function (c) {
       var compat = espace ? compatibilite(c, espace) : { ok: true, raisons: [], notes: [] };
@@ -272,11 +296,15 @@
         return (b.geste === 'semis_place' || (b.geste === 'plantation' && a.geste === 'semis_abri')) ? b : a;
       });
       var cap = espace ? capacite(c, espace, plantationsActives || []) : null;
-      res.push({ culture: c, compat: compat, conseils: conseils, meilleur: best, capacite: cap, demarrage: phraseDemarrage(c, best.geste) });
+      var voisins = voisinage(c.id, plantationsActives || []);
+      var score = (compat.bonus || 0) + voisins.amis.length - 2 * voisins.aEviter.length;
+      var spe = regionId ? REGIONS.specialitesDe(regionId).filter(function (x) { return x.culture === c.id; }).map(function (x) { return x.variete; }) : [];
+      if (spe.length) score += 0.5;
+      res.push({ culture: c, compat: compat, conseils: conseils, meilleur: best, capacite: cap, demarrage: phraseDemarrage(c, best.geste), voisins: voisins, regionales: spe, score: score });
     });
     return res.sort(function (a, b) {
       if (a.compat.ok !== b.compat.ok) return a.compat.ok ? -1 : 1;
-      return b.meilleur.niveau - a.meilleur.niveau || a.culture.nom.localeCompare(b.culture.nom);
+      return b.meilleur.niveau - a.meilleur.niveau || b.score - a.score || a.culture.nom.localeCompare(b.culture.nom);
     });
   }
 
@@ -451,7 +479,10 @@
       res.meteoUtilisee = false;
       res.raisons.push('météo indisponible : estimation sans chaleur ni pluie');
     }
-    var intervalle = Math.max(R.intervalleMin, Math.min(R.intervalleMax, R.intervalleBase[type] * fStade * fChaleur));
+    var fTerrain = 1, o = espace.orientation && TERRAIN.orientations[espace.orientation], so = espace.sol && TERRAIN.sols[espace.sol];
+    if (o && o.facteurArrosage !== 1) { fTerrain *= o.facteurArrosage; res.raisons.push('exposition ' + o.nom.toLowerCase() + (o.facteurArrosage < 1 ? ' : sèche plus vite' : ' : sèche plus lentement')); }
+    if (so && so.facteurArrosage !== 1) { fTerrain *= so.facteurArrosage; res.raisons.push(so.nom.toLowerCase() + (so.facteurArrosage < 1 ? ' : retient peu l’eau' : ' : garde l’eau longtemps')); }
+    var intervalle = Math.max(R.intervalleMin, Math.min(R.intervalleMax, R.intervalleBase[type] * fStade * fChaleur * fTerrain));
     res.intervalleJours = intervalle;
 
     // Pluie tombée (uniquement si l'espace y est exposé, et uniquement le passé)
@@ -616,6 +647,27 @@
         concerne: []
       });
     }
+    // Maladies et nuisibles favorisés par la météo, seulement pour les cultures présentes
+    var passes = meteo.jours.filter(function (j) { return j.date < auj && j.date >= isoDate(ajouterJours(jourDe(maintenant), -2)); });
+    PROBLEMES.filter(function (pb) { return pb.risque; }).forEach(function (pb) {
+      var touchees = noms(function (a) { return pb.cultures.indexOf(a.culture.id) >= 0; });
+      if (!touchees.length) return;
+      var r = pb.risque, declenche = false, quandPb = 'ces jours-ci';
+      if (r.joursPluvieux) {
+        var humides = futurs.slice(0, 5).filter(function (j) { return (j.pluie || 0) >= 2 && j.tmax >= r.tmaxMin && j.tmax <= r.tmaxMax; });
+        if (humides.length >= r.joursPluvieux) { declenche = true; quandPb = quandTxt(humides[0]); }
+      }
+      if (r.pluieRecente) {
+        var tombe = passes.concat(futurs.slice(0, 1)).reduce(function (t, j) { return t + (j.pluie || 0); }, 0);
+        var doux = futurs.slice(0, 2).every(function (j) { return j.tmin >= r.tminMin; });
+        if (tombe >= r.pluieRecente && doux) { declenche = true; quandPb = 'après la pluie'; }
+      }
+      if (declenche) res.push({
+        type: 'probleme', probleme: pb.id, gravite: 'attention', date: futurs[0].date, quand: quandPb,
+        titre: pb.emoji + ' Risque : ' + pb.nom.toLowerCase(),
+        conseil: pb.prevenir, concerne: touchees
+      });
+    });
     var ordre = { alerte: 0, attention: 1, info: 2 };
     return res.sort(function (a, b) { return ordre[a.gravite] - ordre[b.gravite] || (a.date < b.date ? -1 : 1); });
   }
@@ -672,13 +724,73 @@
     };
   }
 
+  /* ---------- Problèmes ---------- */
+  function problemesDe(cultureId) { return PROBLEMES.filter(function (p) { return p.cultures.indexOf(cultureId) >= 0; }); }
+
+  /* ---------- Rappels (fichier agenda .ics, lisible par iPhone, Android, Outlook) ---------- */
+  function icsDate(d, journee) {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    if (journee) return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+    return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + 'T' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + '00Z';
+  }
+  function icsTexte(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function plierLigne(l) { var c = Array.from(l), out = []; for (var i = 0; i < c.length; i += 40) out.push((i ? ' ' : '') + c.slice(i, i + 40).join('')); return out.join('\r\n'); }
+  /** events : [{ id, titre, debut: Date, journee, description, rrule, alarmeMinutes }] */
+  function ics(events, maintenant) {
+    var l = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mon potager//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    events.forEach(function (e) {
+      l.push('BEGIN:VEVENT', 'UID:' + e.id + '@mon-potager', 'DTSTAMP:' + icsDate(maintenant || new Date(), false));
+      if (e.journee) { l.push('DTSTART;VALUE=DATE:' + icsDate(e.debut, true), 'DTEND;VALUE=DATE:' + icsDate(ajouterJours(e.debut, 1), true)); }
+      else { l.push('DTSTART:' + icsDate(e.debut, false), 'DTEND:' + icsDate(new Date(e.debut.getTime() + 15 * 60000), false)); }
+      if (e.rrule) l.push('RRULE:' + e.rrule);
+      l.push('SUMMARY:' + icsTexte(e.titre));
+      if (e.description) l.push('DESCRIPTION:' + icsTexte(e.description));
+      l.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsTexte(e.titre), 'TRIGGER:' + (e.journee ? 'PT9H' : '-PT0M'), 'END:VALARM', 'END:VEVENT');
+    });
+    l.push('END:VCALENDAR');
+    return l.map(plierLigne).join('\r\n') + '\r\n';
+  }
+  /** Rappels d'une culture : étapes à venir, récolte, gestes datés */
+  function rappelsPlantation(p, zoneId, maintenant) {
+    var s = suivi(p, zoneId, maintenant, null), c = s.culture, ev = [], auj = jourDe(maintenant);
+    if (s.statut === 'terminee') return ev;
+    var nomEsp = p.espaceNom ? ' (' + p.espaceNom + ')' : '';
+    s.chronologie.etapes.forEach(function (e) {
+      if (e.observe || e.statut === 'passe' || e.etape === 'recolte' || e.du < auj) return;
+      ev.push({ id: p.id + '-' + e.etape, journee: true, debut: e.du, alarmeMinutes: -540,
+        titre: c.emoji + ' ' + c.nom + nomEsp + ' : à surveiller, ' + e.titre.toLowerCase(),
+        description: 'Fenêtre estimée ' + formatFenetre(e.du, e.au) + '. ' + texteEtape(c, e.etape, 'normal') + ' Confirme-la dans l’app quand tu la vois.' });
+    });
+    if (s.recolte && s.recolte.du >= auj) {
+      ev.push({ id: p.id + '-recolte', journee: true, debut: ajouterJours(s.recolte.du, -3), alarmeMinutes: -540,
+        titre: c.emoji + ' ' + c.nom + nomEsp + ' : récolte bientôt',
+        description: 'Première récolte estimée ' + s.recolte.fenetre + '. Signe à observer : ' + c.recolte.signe });
+    }
+    (c.gestes || []).forEach(function (g, i) {
+      if (g.apres !== 'recolte' || !s.recolte) return;
+      var d = ajouterJours(s.recolte.du, g.j[0]);
+      if (d >= auj) ev.push({ id: p.id + '-geste' + i, journee: true, debut: d, alarmeMinutes: -540, titre: c.emoji + ' ' + c.nom + nomEsp + ' : ' + g.titre.toLowerCase(), description: g.consigne });
+    });
+    return ev;
+  }
+  /** Rappel récurrent de vérification de l'arrosage pour un espace (le soir, 19 h) */
+  function rappelArrosage(espace, maintenant, nb) {
+    var type = espace.type === 'bac' ? 'bac' : 'pleine_terre', R = REGLES.arrosage;
+    var o = espace.orientation && TERRAIN.orientations[espace.orientation], so = espace.sol && TERRAIN.sols[espace.sol];
+    var n = Math.max(1, Math.round(R.intervalleBase[type] * (o ? o.facteurArrosage : 1) * (so ? so.facteurArrosage : 1)));
+    var d = new Date(maintenant.getTime()); d.setHours(19, 0, 0, 0); if (d <= maintenant) d = ajouterJours(d, 1);
+    return { id: 'arrosage-' + espace.id, journee: false, debut: d, rrule: 'FREQ=DAILY;INTERVAL=' + n + ';COUNT=' + (nb || 40),
+      titre: '💧 Vérifier la terre : ' + espace.nom,
+      description: 'Enfonce un doigt dans la terre : si elle est sèche sur 2-3 cm, arrose au pied. Ouvre l’app pour noter « J’ai arrosé » : le prochain conseil tiendra compte de la météo.' , intervalle: n };
+  }
+
   var Moteur = {
     REGLES: REGLES, NIVEAUX: NIVEAUX, GESTES: GESTES, NOMS_MODES: NOMS_MODES,
     cultures: function () { return CULTURES; }, culture: culture, gestesDe: gestesDe, modesDe: modesDe, nomGeste: nomGeste, gesteDuMode: gesteDuMode,
     zone: zone, niveauClimatique: niveauClimatique, conseilGeste: conseilGeste, conseilParJour: conseilParJour, bandeauAnnuel: bandeauAnnuel,
     capacite: capacite, compatibilite: compatibilite, suggestions: suggestions, apresCulture: apresCulture,
     chronologie: chronologie, suivi: suivi, etapesConfirmables: etapesConfirmables, texteEtape: texteEtape,
-    gelees: gelees, climatLocal: climatLocal,
+    gelees: gelees, climatLocal: climatLocal, voisinage: voisinage, problemesDe: problemesDe, ics: ics, rappelsPlantation: rappelsPlantation, rappelArrosage: rappelArrosage,
     arrosage: arrosage, alertesJardin: alertesJardin, previsions: previsions, ciel: ciel,
     dates: { lire: lireDate, iso: isoDate, ajouter: ajouterJours, ecart: ecartJours, format: formatDate, formatJour: formatJour, fenetre: formatFenetre, quand: quand, jour: jourDe }
   };
