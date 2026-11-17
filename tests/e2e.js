@@ -185,6 +185,11 @@ function ok(nom) { etapes.push(nom); console.log('  ✓ ' + nom); }
   await page.click('.jour-nav a >> text=›');
   assert.match(await page.innerText('[data-test="jour-titre"]'), /Jeudi 27 mai/);
   assert.match(await page.innerText('main'), /Quand va-t-il pleuvoir/);
+  assert.match(await page.innerText('[data-test="graphe-pluie"]'), /25 mm sur la journée/);
+  assert.ok(await page.locator('[data-test="graphe-pluie"] .barre-pluie').count() >= 4);
+  await page.locator('[data-test="graphe-pluie"] .cible >> nth=14').dispatchEvent('pointerdown');
+  assert.match(await page.innerText('[data-test="graphe-pluie"] .bulle'), /14 h : 6,3 mm · risque 80 %/);
+  await capture('meteo-pluie');
   await page.goto(base + '#/');
   assert.match(await page.innerText('[data-test="jardin-jour"]'), /Aujourd’hui au jardin/);
   await capture('accueil-jardin-jour');

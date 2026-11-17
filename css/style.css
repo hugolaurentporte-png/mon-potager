@@ -162,8 +162,8 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .svg-graphe .cible.actif, .svg-graphe .cible:hover { fill: var(--texte); fill-opacity: .07; }
 .bulle { position: absolute; top: -6px; transform: translateY(-100%); background: var(--toast); color: var(--toast-t); font-size: .8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 2; }
 .legende-graphe { display: flex; gap: 14px; font-size: .85rem; color: var(--doux); margin: 8px 0 0; }
-.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-.pastille.pluie { background: var(--s-pluie); } .pastille.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
+.cle-serie { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.cle-serie.pluie { background: var(--s-pluie); } .cle-serie.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
 .quarts { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 64px; align-items: end; margin: 8px 0 2px; }
 .quart { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid var(--bord); position: relative; }
 .quart i { display: block; background: var(--s-pluie); border-radius: 3px 3px 0 0; }
@@ -180,3 +180,6 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .soif-chiffres { font-size: 1rem; font-weight: 600; }
 .tableau { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
 .tableau th, .tableau td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--bord); }
+
+.svg-graphe .barre-pluie.incertaine { fill-opacity: .4; }
+.cle-serie.pluie.incertaine { opacity: .4; }

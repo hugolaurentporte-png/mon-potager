@@ -165,8 +165,8 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .svg-graphe .cible.actif, .svg-graphe .cible:hover { fill: var(--texte); fill-opacity: .07; }
 .bulle { position: absolute; top: -6px; transform: translateY(-100%); background: var(--toast); color: var(--toast-t); font-size: .8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 2; }
 .legende-graphe { display: flex; gap: 14px; font-size: .85rem; color: var(--doux); margin: 8px 0 0; }
-.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-.pastille.pluie { background: var(--s-pluie); } .pastille.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
+.cle-serie { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.cle-serie.pluie { background: var(--s-pluie); } .cle-serie.evap { background: var(--s-evap); height: 3px; vertical-align: 3px; }
 .quarts { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 64px; align-items: end; margin: 8px 0 2px; }
 .quart { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid var(--bord); position: relative; }
 .quart i { display: block; background: var(--s-pluie); border-radius: 3px 3px 0 0; }
@@ -183,6 +183,9 @@ b.froid { color: var(--froid); } b.chaud { color: var(--retard); }
 .soif-chiffres { font-size: 1rem; font-weight: 600; }
 .tableau { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
 .tableau th, .tableau td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--bord); }
+
+.svg-graphe .barre-pluie.incertaine { fill-opacity: .4; }
+.cle-serie.pluie.incertaine { opacity: .4; }
 </style>
 <main id="app" aria-live="polite"></main>
   <nav class="nav" aria-label="Navigation principale">
@@ -3550,6 +3553,37 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     });
     return graphe(svg + '</svg>', 'Courbe des températures : minimum ' + Math.round(mn) + ' °C, maximum ' + Math.round(mx) + ' °C');
   }
+  /** Pluie heure par heure (barres, mm) ; le risque en % est dans l'info-bulle */
+  function barresPluie(heures, iso) {
+    var pts = heures.filter(function (x) { return x.pluie != null; });
+    if (pts.length < 12) return '';
+    var total = pts.reduce(function (a, x) { return a + (x.pluie || 0); }, 0);
+    var mx = Math.max.apply(null, pts.map(function (x) { return x.pluie || 0; }));
+    var W = 340, H = 146, L = 30, R = 10, T = 22, B = 22, haut = mx <= 1 ? 1 : mx <= 2 ? 2 : Math.ceil(mx / 2) * 2;
+    var pas = (W - L - R) / 24, X = function (hr) { return L + pas * (hr + 0.5); }, Y = function (v) { return T + (H - T - B) * (1 - v / haut); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="svg-graphe">';
+    [0, haut / 2, haut].forEach(function (g) { svg += '<line class="grille" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="axe" x="' + (L - 4) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + n1(g) + '</text>'; });
+    svg += '<text class="axe" x="' + (L - 4) + '" y="' + (T - 12) + '" text-anchor="end">mm</text>';
+    [0, 6, 12, 18, 23].forEach(function (hr) { svg += '<text class="axe" x="' + X(hr) + '" y="' + (H - 6) + '" text-anchor="middle">' + hr + ' h</text>'; });
+    var now = maintenant();
+    if (D.iso(now) === iso) { var xn = L + pas * (now.getHours() + now.getMinutes() / 60); svg += '<line class="maintenant" x1="' + xn + '" x2="' + xn + '" y1="' + T + '" y2="' + (H - B) + '"/>'; }
+    var lb = Math.max(2, pas - 2), plusForte = null;
+    pts.forEach(function (x) {
+      var p = x.pluie || 0, hr = x.date.getHours(); if (p < 0.05) return;
+      if (!plusForte || p > plusForte.pluie) plusForte = x;
+      var x0 = X(hr) - lb / 2, y = Y(p), r = Math.min(2, lb / 2, Y(0) - y);
+      svg += '<path class="barre-pluie' + (x.proba != null && x.proba < 50 ? ' incertaine' : '') + '" d="M' + x0 + ' ' + Y(0) + 'V' + (y + r) + 'Q' + x0 + ' ' + y + ' ' + (x0 + r) + ' ' + y + 'H' + (x0 + lb - r) + 'Q' + (x0 + lb) + ' ' + y + ' ' + (x0 + lb) + ' ' + (y + r) + 'V' + Y(0) + 'Z"/>';
+    });
+    if (plusForte) svg += '<text class="etiquette" x="' + Math.min(W - R - 14, Math.max(L + 14, X(plusForte.date.getHours()))) + '" y="' + (Y(plusForte.pluie) - 5) + '" text-anchor="middle">' + n1(plusForte.pluie) + '</text>';
+    pts.forEach(function (x) {
+      var hr = x.date.getHours();
+      svg += '<rect class="cible" x="' + (X(hr) - pas / 2) + '" y="' + T + '" width="' + pas + '" height="' + (H - T - B) + '" data-tip="' + esc(hr + ' h : ' + ((x.pluie || 0) >= 0.05 ? n1(x.pluie) + ' mm' : 'pas de pluie') + (x.proba != null ? ' · risque ' + x.proba + ' %' : '')) + '"/>';
+    });
+    return '<p class="jour-grand"><span class="soif-chiffres">' + (total >= 0.1 ? n1(total) + ' mm sur la journée' : 'Pas de pluie prévue') + '</span></p>' +
+      graphe(svg + '</svg>', 'Pluie heure par heure : ' + n1(total) + ' mm sur la journée') +
+      '<p class="legende-graphe"><span><i class="cle-serie pluie"></i>Pluie probable</span><span><i class="cle-serie pluie incertaine"></i>Risque inférieur à 50 %</span></p>' +
+      '<p class="petit">Touche une barre pour lire la quantité et le risque de chaque heure.</p>';
+  }
   /** Pluie tombée (barres) et eau évaporée (ligne), 30 derniers jours */
   function grapheSoif(s) {
     var js = s.jours, n = js.length, W = 340, H = 160, L = 30, R = 10, T = 12, B = 22;
@@ -3568,7 +3602,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     svg += '<path class="trait-evap" d="' + js.map(function (j, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(j.et0).toFixed(1); }).join('') + '"/>';
     [0, Math.floor(n / 2), n - 1].forEach(function (i) { svg += '<text class="axe" x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle') + '">' + esc(D.format(D.lire(js[i].date))) + '</text>'; });
     js.forEach(function (j, i) { svg += '<rect class="cible" x="' + (X(i) - pas / 2) + '" y="' + T + '" width="' + pas + '" height="' + (H - T - B) + '" data-tip="' + esc(capitale(D.formatJour(D.lire(j.date))) + ' · pluie ' + n1(j.pluie) + ' mm · évaporation ' + n1(j.et0) + ' mm') + '"/>'; });
-    return '<p class="legende-graphe"><span><i class="pastille pluie"></i>Pluie tombée</span><span><i class="pastille evap"></i>Eau évaporée</span></p>' +
+    return '<p class="legende-graphe"><span><i class="cle-serie pluie"></i>Pluie tombée</span><span><i class="cle-serie evap"></i>Eau évaporée</span></p>' +
       graphe(svg + '</svg>', 'Pluie tombée et eau évaporée chaque jour sur 30 jours');
   }
   document.addEventListener('pointerover', bulle);
@@ -3689,6 +3723,7 @@ if (typeof module !== 'undefined') module.exports = REGIONS;
     if (eps.length) h += '<section class="carte"><h2>Quand va-t-il pleuvoir ?</h2><ul class="jardin-jour">' + eps.map(function (e) { return '<li>🌧️ De ' + e.debut.getHours() + ' h à ' + e.fin.getHours() + ' h : ' + (Math.round(e.total * 10) / 10) + ' mm' + (e.probaMax ? ' (' + e.probaMax + ' % de risque)' : '') + '</li>'; }).join('') + '</ul></section>';
     if (heures.length) {
       h += '<section class="carte"><h2>Températures de la journée</h2>' + courbeTemperatures(heures, iso) + '<p class="petit">Touche la courbe pour lire chaque heure.</p></section>';
+      h += '<section class="carte" data-test="graphe-pluie"><h2>Pluie de la journée</h2>' + barresPluie(heures, iso) + '</section>';
       h += '<section class="carte"><h2>Heure par heure</h2><div class="heures" data-test="heures"><div class="heure entete-h"><span>Heure</span><span></span><span>Temp.</span><span>Pluie</span><span>Vent</span><span>Humid.</span></div>' + heures.map(function (x) {
         var passe = x.date.getTime() + 3600000 <= now.getTime();
         return '<div class="heure' + (passe ? ' passe' : '') + (x.temp != null && x.temp <= 0 ? ' gel' : '') + '">' +
