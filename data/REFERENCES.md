@@ -92,3 +92,11 @@ ou très abrité peut s'écarter de plusieurs semaines de la moyenne de la commu
   par région administrative ; précocités estimées.
 - Rappels : fichier agenda .ics (norme iCalendar) ; rappels datés à 9 h, rappel
   d'arrosage récurrent à 19 h selon le rythme de base de l'espace.
+
+## Météo approfondie (17/11/2026)
+
+- **Modèle** : Open-Meteo `meteofrance_seamless` (AROME 1,3 km puis ARPEGE, environ 4 à 7 jours) fusionné heure par heure avec le modèle global (`best_match`) qui prend le relais au-delà. Si Météo-France ne répond pas, le modèle global seul est utilisé.
+- **Bilan d'eau** (`REGLES.bilan` dans js/moteur.js) : consommation = ET0 (FAO, Open-Meteo) × coefficient de culture (0,6 / 0,85 / 1,0 ; 1,1 en production gourmande), répartie de 8 h à 20 h ; × 1,2 en bac ; ÷ facteur d'exposition. Réserve utile simplifiée : bac 6-7 mm ; pleine terre 9 (sableux) à 25 mm (argileux) ; réduite pour les jeunes plants (racines courtes) et limitée à 3 mm pour un semis non levé. Pluie tombée comptée à 80 % en bac, 100 % en pleine terre ; jamais sous abri. « Vérifier » quand 75 % de la réserve est consommée. **Valeurs indicatives, à valider.**
+- **Décision** : « Attends la pluie » seulement si un épisode d'au moins 3 mm à 70 % de risque ou plus est prévu dans les 14 h (jamais pour un semis non levé ni sous abri).
+- **Canicule** : au moins 3 jours consécutifs ≥ 30 °C (seuil simplifié, différent des seuils départementaux officiels de vigilance).
+- **Essai vraie météo** : `node outils/essai-meteo-reel.js` (lancé automatiquement par GitHub Actions à chaque mise à jour du code). Premier essai réussi le 17/11/2026 sur Orléans, Brest, Marseille et Grenoble : Météo-France disponible sur 7 jours, pluie horaire cohérente avec la pluie journalière.
